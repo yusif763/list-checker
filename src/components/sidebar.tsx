@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FolderKanban, Settings, ClipboardCheck, type LucideIcon } from "lucide-react";
+import { FolderKanban, Settings, ClipboardCheck, GitCompare, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface NavItem {
@@ -14,6 +14,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { label: "Layihələr", href: "/", icon: FolderKanban, match: (p) => p === "/" || p.startsWith("/layihe") },
+  { label: "İki siyahı tutuşdurması", href: "/tutushdurma", icon: GitCompare, match: (p) => p.startsWith("/tutushdurma") },
   { label: "Parametrlər", href: "/parametrler", icon: Settings, match: (p) => p.startsWith("/parametrler") },
 ];
 
