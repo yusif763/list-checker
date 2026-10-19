@@ -4,7 +4,8 @@ import { getAIProvider } from "./index";
 
 const FIELDS: CanonicalField[] = [
   "firstName", "lastName", "patronymic", "fullName", "finCode", "dateOfBirth",
-  "phone", "email", "gender", "documentNumber", "position", "subject", "region", "workplace",
+  "phone", "email", "gender", "documentNumber", "position", "subject", "region",
+  "workplace", "educationAuthority",
 ];
 
 const Schema = z.object({
@@ -34,12 +35,15 @@ Sənə cədvəlin ilk sətirləri verilir (hər sətir massiv kimi). Təyin et:
 Kanonik sahələr: firstName(Ad), lastName(Soyad), patronymic(Ata adı),
 fullName(birləşmiş Soyad Ad Ata-adı), finCode(7 simvollu FİN, məs ABC1234 və ya 2TPULW0),
 dateOfBirth(doğum tarixi), phone(telefon), email, gender(Cins), documentNumber,
-position(Vəzifə), subject(fənn), region(rayon/şəhər), workplace(müəssisə/məktəb).
+position(Vəzifə), subject(fənn), region(rayon/şəhər),
+workplace(KONKRET iş yeri — şəxsin işlədiyi məktəb/lisey/müəssisə; adında "məktəb", "lisey", "k-d", "t.o.ü.m." olur),
+educationAuthority(regional və ya rayon TƏHSİL İDARƏSİ — məs. "Mil - Muğan Regional Təhsil İdarəsi"; bütün sətirlərdə təkrarlanan ümumi idarə adı).
 
 Qaydalar:
 - Başlıqlar birdən çox sətir ola bilər və ya başlıqdan əvvəl başlıq/mətn sətirləri ola bilər — ƏSL başlıq sətrini seç.
 - Başlıq yoxdursa sütunları dəyərlərin nümunələrinə görə təyin et (məs. "Məlikova Aytən Afik qızı" → fullName, "4n7agez" → finCode, "18/10/1989" → dateOfBirth, "Qadın" → gender).
-- 7 rəqəmli hərfli kod → finCode. Uzun məktəb adı → workplace.
+- 7 rəqəmli hərfli kod → finCode.
+- VACİB: İKİ müəssisə sütunu ola bilər. UZUN, konkret MƏKTƏB adı (məs. "Sabirabad rayonu İltifat Əhmədov adına Balakənd kənd ümumi orta ümumtəhsil məktəbi") → workplace. Qısa, təkrarlanan İDARƏ adı (məs. "Mil - Muğan Regional Təhsil İdarəsi") → educationAuthority. İŞ YERİ kimi məktəbi götür, idarəni YOX.
 - Aid olmayan sütunlar üçün field=null.
 - Yalnız bu JSON: { "headerRowIndex": number, "mappings": [ { "index": number, "field": string|null } ] }`;
 

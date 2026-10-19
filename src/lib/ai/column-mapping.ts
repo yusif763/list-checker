@@ -17,6 +17,7 @@ const FIELDS: CanonicalField[] = [
   "subject",
   "region",
   "workplace",
+  "educationAuthority",
 ];
 
 const MappingItemSchema = z.object({
@@ -51,9 +52,11 @@ Hər sütunu YALNIZ bu kanonik sahələrdən birinə uyğunlaşdır (və ya aid 
 - position (Vəzifə, məs. Müəllim)
 - subject (Tədris etdiyi fənn, məs. İngilis dili)
 - region (Rayon / şəhər)
-- workplace (İşlədiyi müəssisə / məktəb)
+- workplace (işlədiyi KONKRET məktəb/müəssisə)
+- educationAuthority (regional/rayon Təhsil İdarəsi, məs. "Mil - Muğan Regional Təhsil İdarəsi")
 
 Qaydalar:
+- İki müəssisə sütunu olarsa: konkret məktəb → workplace, idarə → educationAuthority.
 - Başlıq adı ilə yanaşı nümunə dəyərlərə də bax (məs. ABC1234 → finCode, 15.08.1990 → dateOfBirth).
 - Hər kanonik sahə ƏN ÇOX bir sütuna verilə bilər (ən uyğun olana).
 - Əmin olmadıqda field=null qoy. Heç nə uydurma.

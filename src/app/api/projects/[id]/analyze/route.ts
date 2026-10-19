@@ -12,7 +12,7 @@ const MAX_RECORDS_PER_CALL = 5;
 
 const COMPARE_FIELDS: CanonicalField[] = [
   "lastName", "firstName", "patronymic", "dateOfBirth", "finCode", "gender",
-  "documentNumber", "position", "subject", "region", "workplace",
+  "documentNumber", "position", "subject", "region", "workplace", "educationAuthority",
 ];
 
 function val(r: PersonRecord, f: CanonicalField): string | null {

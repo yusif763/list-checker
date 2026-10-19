@@ -19,6 +19,7 @@ const COMPARE_FIELDS: CanonicalField[] = [
   "subject",
   "region",
   "workplace",
+  "educationAuthority",
 ];
 
 const NAME_FUZZY_THRESHOLD = 0.9;

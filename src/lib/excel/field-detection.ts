@@ -42,6 +42,7 @@ const EXACT: Record<CanonicalField, string[]> = {
   subject: ["fenn", "tedris etdiyi fenn", "subject", "ixtisas"],
   region: ["rayon", "sehir", "rayon sehir", "region", "sehir rayon"],
   workplace: ["isledigi muessise", "muessise", "is yeri", "mekteb", "workplace", "teskilat"],
+  educationAuthority: ["tehsil idaresi", "regional tehsil idaresi", "idare", "regional idare"],
 };
 
 // Qismən uyğunluq üçün açar söz hissələri (daha aşağı inamla).
@@ -63,6 +64,8 @@ const CONTAINS: Array<{ field: CanonicalField; token: string; confidence: number
   { field: "region", token: "rayon", confidence: 0.8 },
   { field: "workplace", token: "muessise", confidence: 0.8 },
   { field: "workplace", token: "mekteb", confidence: 0.6 },
+  { field: "educationAuthority", token: "tehsil idaresi", confidence: 0.85 },
+  { field: "educationAuthority", token: "regional", confidence: 0.7 },
   { field: "firstName", token: "ad", confidence: 0.5 },
 ];
 

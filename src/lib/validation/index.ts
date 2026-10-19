@@ -45,6 +45,13 @@ export function validateFields(raw: Partial<Record<CanonicalField, string>>): {
     normalized.fullName = raw.fullName.trim().replace(/\s+/g, " ");
   }
 
+  // Mətn sahələri — yalnız təhlükəsiz passthrough (boşluq azaldılır).
+  for (const f of ["position", "subject", "region", "workplace", "educationAuthority"] as const) {
+    if (raw[f] !== undefined && raw[f]!.trim()) {
+      normalized[f] = raw[f]!.trim().replace(/\s+/g, " ");
+    }
+  }
+
   return { normalized, issues };
 }
 
