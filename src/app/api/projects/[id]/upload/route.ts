@@ -15,14 +15,25 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const project = await getProject(params.id);
     if (!project) return NextResponse.json({ error: "Layihə tapılmadı." }, { status: 404 });
 
-    const form = await req.formData();
+    let form: FormData;
+    try {
+      form = await req.formData();
+    } catch {
+      return NextResponse.json(
+        { error: "Fayl oxunmadı — ölçü serverless limitini (~6 MB) aşa bilər. Faylı kiçildin və ya bölün." },
+        { status: 400 },
+      );
+    }
     const kind = form.get("kind") as FileKind | null;
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
     if (!kind || !["final", "main", "identity"].includes(kind)) {
       return NextResponse.json({ error: "Fayl növü düzgün deyil." }, { status: 400 });
     }
     if (files.length === 0) {
-      return NextResponse.json({ error: "Fayl tapılmadı." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Fayl tapılmadı — ola bilsin fayl çox böyükdür (serverless limiti ~6 MB)." },
+        { status: 400 },
+      );
     }
 
     const warnings: string[] = [];
