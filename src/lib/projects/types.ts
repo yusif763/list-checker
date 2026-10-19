@@ -14,6 +14,9 @@ export interface ProjectFile {
   status: ProcessStatus;
   /** Şəxsiyyət faylları üçün: çıxarılan vəsiqə sayı. */
   extractedCount?: number;
+  /** Şəxsiyyət faylları üçün: ümumi vahid (vəsiqə) sayı və emal olunanlar. */
+  totalUnits?: number;
+  processedUnits?: number;
   /** Excel faylları üçün: qurulan qeyd sayı. */
   recordCount?: number;
   error?: string;

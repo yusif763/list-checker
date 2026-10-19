@@ -16,17 +16,19 @@ export function ProcessPanel({
   const [error, setError] = useState<string | null>(null);
 
   const identityFiles = project.files.filter((f) => f.kind === "identity");
-  const pending = identityFiles.filter((f) => f.status === "pending").length;
   const done = identityFiles.filter((f) => f.status === "done").length;
+  const notDone = identityFiles.filter((f) => f.status !== "done").length;
 
   const processAll = async () => {
     setRunning(true);
     setError(null);
     try {
-      // Addım-addım: hər gözləyən faylı ardıcıl emal et.
-      // Qoruyucu limit (sonsuz dövrün qarşısını alır).
-      for (let i = 0; i < identityFiles.length + 2; i++) {
+      // Vahid-vahid: hər sorğu bir neçə vəsiqə emal edir (serverless limit üçün).
+      // remaining 0 olana qədər davam et (qoruyucu limit ilə).
+      let guard = 0;
+      while (guard < 2000) {
         const remaining = await onProcessStep();
+        guard++;
         if (remaining === 0) break;
       }
     } catch (e) {
@@ -60,11 +62,12 @@ export function ProcessPanel({
     <div className="space-y-4">
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="text-sm text-slate-600">
-          {identityFiles.length} fayl • {done} emal olunub • {pending} gözləyir
+          {identityFiles.length} fayl • {done} hazır • {notDone} qalıb
+          {running && <span className="ml-2 text-brand-600">emal olunur...</span>}
         </div>
-        <Button onClick={processAll} disabled={running || pending === 0}>
+        <Button onClick={processAll} disabled={running || notDone === 0}>
           {running ? <Spinner /> : <Play className="h-4 w-4" />}
-          {pending === 0 ? "Hamısı emal olunub" : `Emalı başlat (${pending})`}
+          {notDone === 0 ? "Hamısı emal olunub" : "Emalı başlat"}
         </Button>
       </Card>
 
@@ -80,8 +83,14 @@ export function ProcessPanel({
                 <IdCard className="h-4 w-4 text-brand-500" />
                 <div>
                   <div className="font-medium text-slate-700">{f.name}</div>
-                  {f.extractedCount !== undefined && (
-                    <div className="text-xs text-slate-500">{f.extractedCount} vəsiqə çıxarıldı</div>
+                  {f.totalUnits !== undefined && f.totalUnits > 0 ? (
+                    <div className="text-xs text-slate-500">
+                      {f.processedUnits ?? 0}/{f.totalUnits} vəsiqə emal olundu
+                    </div>
+                  ) : (
+                    f.extractedCount !== undefined && (
+                      <div className="text-xs text-slate-500">{f.extractedCount} vəsiqə</div>
+                    )
                   )}
                 </div>
               </div>

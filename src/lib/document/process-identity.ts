@@ -5,8 +5,6 @@ import { segmentDocument } from "@/lib/document/segment";
 import { extractIdentity, extractIdentityFromImage, getAIProvider } from "@/lib/ai";
 import type { ExtractedIdentity } from "@/lib/types";
 
-const MAX_ITEMS_PER_FILE = 120;
-
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
 const MIME: Record<string, string> = {
   jpg: "image/jpeg",
@@ -42,79 +40,117 @@ export function manualReviewPlaceholder(
   };
 }
 
+/** Bir emal vahidi — bir şəxsiyyət vəsiqəsi (şəkil və ya mətn hissəsi). */
+export interface IdentityUnit {
+  kind: "image" | "text" | "placeholder";
+  /** image üçün data URL, text üçün mətn, placeholder üçün qeyd. */
+  payload: string;
+  pageNumber: number | null;
+}
+
+export interface IdentityPlan {
+  units: IdentityUnit[];
+  warnings: string[];
+}
+
+/**
+ * Faylı emal vahidlərinə (ayrı-ayrı vəsiqələrə) BÖLÜR, amma hələ AI çağırmır.
+ * Bu, emalı kiçik hissələrlə (serverless vaxt limiti üçün) aparmağa imkan verir.
+ */
+export async function planIdentityUnits(fileName: string, buffer: ArrayBuffer): Promise<IdentityPlan> {
+  const lower = fileName.toLowerCase();
+  const provider = getAIProvider();
+  const canVision = provider.isEnabled() && provider.supportsVision();
+  const warnings: string[] = [];
+
+  if (lower.endsWith(".docx")) {
+    const images = await extractDocxImages(buffer);
+    if (images.length > 0) {
+      if (!canVision) {
+        warnings.push(`${fileName}: şəkilli Word üçün vision AI deaktivdir.`);
+        return { units: [{ kind: "placeholder", payload: "vision deaktiv", pageNumber: null }], warnings };
+      }
+      return {
+        units: images.map((img, i) => ({ kind: "image", payload: img.dataUrl, pageNumber: i + 1 })),
+        warnings,
+      };
+    }
+    const text = await extractDocxText(buffer);
+    if (text.length < 10) {
+      warnings.push(`${fileName}: Word daxilində mətn/şəkil tapılmadı.`);
+      return { units: [{ kind: "placeholder", payload: "boş Word", pageNumber: null }], warnings };
+    }
+    return {
+      units: segmentDocument([text]).map((s) => ({ kind: "text", payload: s.text, pageNumber: s.pageNumber })),
+      warnings,
+    };
+  }
+
+  if (IMAGE_EXT.test(lower)) {
+    if (!canVision) {
+      warnings.push(`${fileName}: şəkil üçün vision AI deaktivdir.`);
+      return { units: [{ kind: "placeholder", payload: "vision deaktiv", pageNumber: null }], warnings };
+    }
+    const ext = (lower.split(".").pop() || "jpeg").toLowerCase();
+    const mime = MIME[ext] || "image/jpeg";
+    const dataUrl = `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`;
+    return { units: [{ kind: "image", payload: dataUrl, pageNumber: null }], warnings };
+  }
+
+  if (lower.endsWith(".pdf")) {
+    const pdf = await extractPdfText(buffer);
+    if (pdf.likelyScanned) {
+      warnings.push(`${fileName}: skan PDF — OCR bu versiyada yoxdur.`);
+      return { units: [{ kind: "placeholder", payload: "skan PDF", pageNumber: null }], warnings };
+    }
+    return {
+      units: segmentDocument(pdf.pages).map((s) => ({ kind: "text", payload: s.text, pageNumber: s.pageNumber })),
+      warnings,
+    };
+  }
+
+  if (lower.endsWith(".txt")) {
+    const text = new TextDecoder().decode(buffer);
+    return {
+      units: segmentDocument([text]).map((s) => ({ kind: "text", payload: s.text, pageNumber: s.pageNumber })),
+      warnings,
+    };
+  }
+
+  warnings.push(`${fileName}: format (.doc və s.) dəstəklənmir.`);
+  return { units: [{ kind: "placeholder", payload: "format dəstəklənmir", pageNumber: null }], warnings };
+}
+
+/** Bir emal vahidini AI ilə işlədir (xəta atsa, çağıran tutur). */
+export async function processUnit(unit: IdentityUnit, fileName: string): Promise<ExtractedIdentity> {
+  if (unit.kind === "image") {
+    return extractIdentityFromImage([unit.payload], fileName, unit.pageNumber);
+  }
+  if (unit.kind === "text") {
+    return extractIdentity(unit.payload, fileName, unit.pageNumber);
+  }
+  return manualReviewPlaceholder(fileName, unit.pageNumber, unit.payload);
+}
+
 export interface IdentityFileResult {
   identities: ExtractedIdentity[];
   warnings: string[];
 }
 
-/**
- * Bir şəxsiyyət sənədi faylını emal edir (Word şəkilləri → vision, müstəqil
- * şəkil → vision, PDF mətn, TXT). Hər vahid ayrıca try/catch ilə — bir
- * xəta bütün faylı dayandırmır.
- */
+/** Bütün faylı bir dəfəyə emal edir (köhnə /api/identity/extract üçün). */
 export async function processIdentityFile(
   fileName: string,
   buffer: ArrayBuffer,
 ): Promise<IdentityFileResult> {
-  const lower = fileName.toLowerCase();
-  const provider = getAIProvider();
-  const canVision = provider.isEnabled() && provider.supportsVision();
+  const plan = await planIdentityUnits(fileName, buffer);
   const identities: ExtractedIdentity[] = [];
-  const warnings: string[] = [];
-
-  if (lower.endsWith(".docx")) {
-    const images = await extractDocxImages(buffer);
-    if (images.length > 0 && canVision) {
-      const limited = images.slice(0, MAX_ITEMS_PER_FILE);
-      if (images.length > MAX_ITEMS_PER_FILE) {
-        warnings.push(`${fileName}: ${MAX_ITEMS_PER_FILE} şəkil limitinə çatdı, qalanı emal olunmadı.`);
-      }
-      for (let i = 0; i < limited.length; i++) {
-        try {
-          identities.push(await extractIdentityFromImage([limited[i].dataUrl], fileName, i + 1));
-        } catch (e) {
-          warnings.push(`${fileName} (şəkil ${i + 1}): ${(e as Error).message}`);
-          identities.push(manualReviewPlaceholder(fileName, i + 1, "şəkil oxunmadı — təkrar emal lazımdır"));
-        }
-      }
-    } else {
-      const text = await extractDocxText(buffer);
-      if (text.length < 10) {
-        warnings.push(`${fileName}: Word daxilində oxunabilən mətn/şəkil tapılmadı${canVision ? "" : " (vision deaktiv)"}.`);
-        identities.push(manualReviewPlaceholder(fileName, null, "boş və ya vision deaktiv"));
-      } else {
-        for (const seg of segmentDocument([text]).slice(0, MAX_ITEMS_PER_FILE)) {
-          identities.push(await extractIdentity(seg.text, fileName, seg.pageNumber));
-        }
-      }
+  for (let i = 0; i < plan.units.length; i++) {
+    try {
+      identities.push(await processUnit(plan.units[i], fileName));
+    } catch (e) {
+      plan.warnings.push(`${fileName} (vahid ${i + 1}): ${(e as Error).message}`);
+      identities.push(manualReviewPlaceholder(fileName, i + 1, "oxunmadı — təkrar lazımdır"));
     }
-  } else if (IMAGE_EXT.test(lower)) {
-    if (!canVision) {
-      warnings.push(`${fileName}: şəkil üçün vision AI deaktivdir — manual yoxlama lazımdır.`);
-      identities.push(manualReviewPlaceholder(fileName, null, "vision deaktiv"));
-    } else {
-      const ext = (lower.split(".").pop() || "jpeg").toLowerCase();
-      const mime = MIME[ext] || "image/jpeg";
-      const dataUrl = `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`;
-      identities.push(await extractIdentityFromImage([dataUrl], fileName, null));
-    }
-  } else if (lower.endsWith(".pdf")) {
-    const pdf = await extractPdfText(buffer);
-    if (pdf.likelyScanned) {
-      warnings.push(`${fileName}: skan edilmiş PDF — PDF şəkil OCR bu versiyada yoxdur, manual yoxlama lazımdır.`);
-      identities.push(manualReviewPlaceholder(fileName, null, "skan PDF — OCR lazımdır"));
-    } else {
-      for (const seg of segmentDocument(pdf.pages).slice(0, MAX_ITEMS_PER_FILE)) {
-        identities.push(await extractIdentity(seg.text, fileName, seg.pageNumber));
-      }
-    }
-  } else if (lower.endsWith(".txt")) {
-    const dec = new TextDecoder();
-    identities.push(await extractIdentity(dec.decode(buffer), fileName, null));
-  } else {
-    warnings.push(`${fileName}: bu format (.doc və s.) hələ dəstəklənmir, manual yoxlama lazımdır.`);
-    identities.push(manualReviewPlaceholder(fileName, null, "format dəstəklənmir"));
   }
-
-  return { identities, warnings };
+  return { identities, warnings: plan.warnings };
 }
