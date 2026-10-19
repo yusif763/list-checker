@@ -12,7 +12,14 @@ export class DeepSeekProvider implements AIProvider {
   private config: DeepSeekConfig | null;
 
   constructor() {
-    const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
+    // Açarı təmizlə: boşluq/yeni sətir, əhatə edən dırnaqlar, təsadüfi
+    // "DEEPSEEK_API_KEY=" prefiksi (Netlify-a yapışdırarkən tez-tez olur).
+    const apiKey = (process.env.DEEPSEEK_API_KEY ?? "")
+      .trim()
+      .replace(/^["']|["']$/g, "")
+      .replace(/^DEEPSEEK_API_KEY=/i, "")
+      .replace(/\s+/g, "")
+      .trim();
     const aiEnabled = (process.env.AI_ENABLED ?? "true").toLowerCase() !== "false";
     if (apiKey && aiEnabled) {
       this.config = {
