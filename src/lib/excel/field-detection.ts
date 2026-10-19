@@ -1,4 +1,5 @@
-import type { CanonicalField } from "@/lib/types";
+import type { CanonicalField, ColumnMapping } from "@/lib/types";
+import type { AiColumnGuess } from "@/lib/ai/column-mapping";
 
 /** Başlıq mətnini müqayisə üçün sadələşdirir. */
 function normalizeHeader(header: string): string {
@@ -110,3 +111,41 @@ export function detectFields(headers: string[]): FieldGuess[] {
 }
 
 export const LOW_CONFIDENCE_THRESHOLD = 0.6;
+
+/** Yekun/müqayisə üçün ən azı bir identifikasiya sahəsi lazımdır. */
+const IDENTITY_FIELDS: CanonicalField[] = ["firstName", "lastName", "fullName", "finCode"];
+
+export function hasIdentityField(mappings: { field: CanonicalField | null }[]): boolean {
+  return mappings.some((m) => m.field && IDENTITY_FIELDS.includes(m.field));
+}
+
+/**
+ * AI təxminlərini qayda əsaslı uyğunlaşdırma ilə birləşdirir.
+ * Güclü qayda nəticələri (conf >= 0.9) saxlanılır; AI yalnız boş qalan
+ * sütunlar və hələ təyin olunmayan sahələr üçün istifadə olunur.
+ */
+export function mergeAiMappings(mappings: ColumnMapping[], aiGuesses: AiColumnGuess[]): ColumnMapping[] {
+  const result = mappings.map((m) => ({ ...m }));
+
+  const claimed = new Set<CanonicalField>();
+  for (const m of result) {
+    if (m.field && m.confidence >= 0.9) claimed.add(m.field);
+  }
+
+  for (const guess of aiGuesses) {
+    if (!guess.field) continue;
+    const target = result.find((m) => m.index === guess.index);
+    if (!target) continue;
+    // Güclü qayda nəticəsini dəyişmə.
+    if (target.field && target.confidence >= 0.9) continue;
+    // Bu sahə artıq güclü şəkildə başqa sütuna verilibsə, keç.
+    if (claimed.has(guess.field)) continue;
+
+    target.field = guess.field;
+    target.confidence = guess.confidence;
+    target.source = "ai";
+    claimed.add(guess.field);
+  }
+
+  return result;
+}

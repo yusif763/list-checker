@@ -1,24 +1,4 @@
-import { AIDisabledError, ExtractedIdentitySchema, type AIExtractedIdentity, type AIProvider } from "@/lib/ai/types";
-
-const SYSTEM_PROMPT = `Sən Azərbaycan şəxsiyyət vəsiqələrindən məlumat çıxaran dəqiq köməkçisən.
-Verilən mətndən yalnız AÇIQ-AŞKAR görünən sahələri çıxar. Heç bir məlumatı UYDURMA.
-Tapılmayan və ya oxunmayan sahələr üçün null qaytar.
-Tarixləri GG.AA.İİİİ formatında ver. Cins: MALE, FEMALE və ya UNKNOWN.
-Yalnız aşağıdakı JSON sxemi ilə cavab ver:
-{
-  "firstName": string|null,
-  "lastName": string|null,
-  "patronymic": string|null,
-  "dateOfBirth": string|null,
-  "finCode": string|null,
-  "gender": "MALE"|"FEMALE"|"UNKNOWN"|null,
-  "documentNumber": string|null,
-  "issueDate": string|null,
-  "expiryDate": string|null,
-  "issuingAuthority": string|null,
-  "confidence": number (0..1),
-  "requiresManualReview": boolean
-}`;
+import { AIDisabledError, type AIProvider } from "@/lib/ai/types";
 
 interface DeepSeekConfig {
   apiKey: string;
@@ -48,7 +28,7 @@ export class DeepSeekProvider implements AIProvider {
     return this.config !== null;
   }
 
-  async extractIdentity(text: string): Promise<AIExtractedIdentity> {
+  async chatJson(systemPrompt: string, userPrompt: string): Promise<unknown> {
     if (!this.config) throw new AIDisabledError();
 
     const res = await fetch(`${this.config.baseUrl}/chat/completions`, {
@@ -60,10 +40,12 @@ export class DeepSeekProvider implements AIProvider {
       body: JSON.stringify({
         model: this.config.model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Şəxsiyyət vəsiqəsi mətni:\n\n${text.slice(0, 6000)}` },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         temperature: 0,
+        // DeepSeek json_object rejimi üçün prompt-da "json" sözü olmalıdır
+        // (system prompt-larda təmin olunur).
         response_format: { type: "json_object" },
       }),
     });
@@ -73,20 +55,14 @@ export class DeepSeekProvider implements AIProvider {
       throw new Error(`DeepSeek API xətası (${res.status}): ${body.slice(0, 300)}`);
     }
 
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error("DeepSeek boş cavab qaytardı.");
 
-    let parsed: unknown;
     try {
-      parsed = JSON.parse(content);
+      return JSON.parse(content);
     } catch {
       throw new Error("DeepSeek cavabı düzgün JSON deyil.");
     }
-
-    // AI çıxışına HEÇ VAXT yoxlamadan güvənmə.
-    return ExtractedIdentitySchema.parse(parsed);
   }
 }

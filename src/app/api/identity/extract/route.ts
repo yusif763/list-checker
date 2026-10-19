@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { extractPdfText } from "@/lib/pdf/extract";
+import { extractDocxText } from "@/lib/document/docx";
 import { segmentDocument } from "@/lib/document/segment";
 import { extractIdentity } from "@/lib/ai";
 import type { ExtractedIdentity } from "@/lib/types";
@@ -59,13 +60,26 @@ export async function POST(req: Request) {
           const identity = await extractIdentity(seg.text, file.name, seg.pageNumber);
           identities.push(identity);
         }
+      } else if (name.endsWith(".docx")) {
+        // Word sənədi — mətn çıxar, çoxlu vəsiqə üçün seqmentlə, AI ilə emal et.
+        const buffer = await file.arrayBuffer();
+        const text = await extractDocxText(buffer);
+        if (text.length < 10) {
+          warnings.push(`${file.name}: Word sənədindən mətn çıxarılmadı (şəkil ola bilər) — manual yoxlama lazımdır.`);
+          identities.push(manualReviewPlaceholder(file.name, "boş/şəkilli Word"));
+          continue;
+        }
+        const segments = segmentDocument([text]).slice(0, MAX_SEGMENTS_PER_FILE);
+        for (const seg of segments) {
+          identities.push(await extractIdentity(seg.text, file.name, seg.pageNumber));
+        }
       } else if (name.endsWith(".txt")) {
         const text = await file.text();
         const identity = await extractIdentity(text, file.name, null);
         identities.push(identity);
       } else {
-        // Şəkil/DOCX/DOC bu nazik versiyada hələ OCR/çevirmə dəstəkləmir.
-        warnings.push(`${file.name}: bu format (şəkil/DOCX) hələ dəstəklənmir, manual yoxlama lazımdır.`);
+        // Şəkil və köhnə .doc bu versiyada OCR/çevirmə dəstəkləmir.
+        warnings.push(`${file.name}: bu format (şəkil/.doc) hələ dəstəklənmir, manual yoxlama lazımdır.`);
         identities.push(manualReviewPlaceholder(file.name, "format dəstəklənmir"));
       }
     }

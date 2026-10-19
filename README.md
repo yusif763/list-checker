@@ -15,6 +15,8 @@ ya davamlı fayl saxlama tələb etmir.
 - **Dinamik Excel importu** — `.xlsx/.xls/.csv`, başlıq sətrinin avtomatik aşkarlanması
   (məs. 3-cü sətirdə), çoxlu vərəq, fərqli sütun adları (AZ/EN), sütun uyğunlaşdırma
   önizləməsi və əl ilə düzəliş.
+- **AI sütun uyğunlaşdırma** — qayda əsaslı aşkarlama başlıqları tanımadıqda DeepSeek
+  başlıqları (+ nümunə dəyərləri) analiz edib kanonik sahələrə uyğunlaşdırır.
 - **Birləşmiş tam ad ayrılması** — `Məmmədov Əli Hüseyn oğlu` → soyad/ad/ata adı
   (qeyri-müəyyən hallar yoxlamaya göndərilir).
 - **Deterministik yoxlama mühərriki** — FİN, telefon `(0XX) XXX XX XX`, tarix `GG.AA.İİİİ`
@@ -23,9 +25,9 @@ ya davamlı fayl saxlama tələb etmir.
   (Levenshtein, Jaro-Winkler). Yalnız ad/soyad eyniliyi dəqiq uyğunluq sayılmır.
 - **Təkrar aşkarlanması** — eyni FİN/eyni şəxs, eyni FİN/fərqli ad, eyni ad/fərqli FİN,
   fuzzy ehtimal. Mənbə (fayl, vərəq, sətir) izlənilir.
-- **Şəxsiyyət vəsiqəsi emalı** — PDF mətn çıxarışı (serverless `unpdf`), bir sənəddə/səhifədə
-  **çoxlu vəsiqə seqmentasiyası**, DeepSeek ilə sahə çıxarışı (sxemlə yoxlanır), Yekun Siyahı
-  ilə sahə-sahə müqayisə.
+- **Şəxsiyyət vəsiqəsi emalı** — PDF (serverless `unpdf`) və **Word `.docx`** (mammoth) mətn
+  çıxarışı, bir sənəddə/səhifədə **çoxlu vəsiqə seqmentasiyası**, DeepSeek ilə sahə çıxarışı
+  (sxemlə yoxlanır), Yekun Siyahı ilə sahə-sahə müqayisə.
 - **Yekun-mərkəzli panel və hesabatlar** — metrikalar, filtrlənə bilən cədvəl, şəxs detalı,
   düzəlişlər (təsdiq/geri al, audit), 6 vərəqli Excel ixracı.
 
@@ -94,7 +96,7 @@ npm test         # vitest (36 test: yoxlama, uyğunlaşdırma, aşkarlama, ad ay
 - **Saxlama yoxdur** — səhifə tam yeniləndikdə məlumat sıfırlanır (sessiya yaddaşı istisna).
 - **OCR/şəkil yoxdur** — skan edilmiş PDF və şəkillər manual yoxlama üçün işarələnir
   (mətnli PDF-lər işləyir).
-- **DOCX/DOC çevrilməsi yoxdur** — bu formatlar manual yoxlama üçün işarələnir.
+- **Word `.docx` dəstəklənir** (AI ilə); köhnə `.doc` formatı hələ yox (manual yoxlama).
 - **Giriş (auth) yoxdur** — açıq rejim (istənilən vaxt əlavə oluna bilər).
 - **AI balansı** — DeepSeek hesabında balans olmadıqda çağırış uğursuz olur və sistem
   deterministik (regex) çıxarışa keçir. Bu normaldır; balans artırılanda AI avtomatik işləyir.

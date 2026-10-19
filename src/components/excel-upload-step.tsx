@@ -104,7 +104,7 @@ export function ExcelUploadStep({
         <Dropzone
           accept=".xlsx,.xls,.csv"
           onFiles={handleFile}
-          hint="XLSX, XLS və ya CSV • başlıqlar avtomatik aşkarlanır"
+          hint="XLSX, XLS və ya CSV • başlıqlar avtomatik aşkarlanır (AI köməyi ilə)"
         />
       )}
 

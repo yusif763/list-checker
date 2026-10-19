@@ -23,8 +23,11 @@ export interface AIProvider {
   readonly name: string;
   /** Açar konfiqurasiya olunub və AI aktivdir? */
   isEnabled(): boolean;
-  /** Sərbəst mətndən identifikasiya məlumatını çıxarır (JSON qaytarır). */
-  extractIdentity(text: string): Promise<AIExtractedIdentity>;
+  /**
+   * Sistem + istifadəçi promptu göndərir və JSON cavabı (parse edilmiş) qaytarır.
+   * Çağıran tərəf nəticəni Zod ilə yoxlamalıdır — AI çıxışına güvənilmir.
+   */
+  chatJson(systemPrompt: string, userPrompt: string): Promise<unknown>;
 }
 
 export class AIDisabledError extends Error {

@@ -1,9 +1,30 @@
 import type { ExtractedIdentity, Gender } from "@/lib/types";
 import { normalizeDate, normalizeFin, toGender } from "@/lib/validation";
 import { getAIProvider } from "./index";
+import { ExtractedIdentitySchema } from "./types";
 
 const FIN_REGEX = /\b([A-Z0-9]{7})\b/g;
 const DATE_REGEX = /\b(\d{2}[.\/-]\d{2}[.\/-]\d{4})\b/g;
+
+const IDENTITY_SYSTEM_PROMPT = `Sən Azərbaycan şəxsiyyət vəsiqələrindən məlumat çıxaran dəqiq köməkçisən.
+Verilən mətndən yalnız AÇIQ-AŞKAR görünən sahələri çıxar. Heç bir məlumatı UYDURMA.
+Tapılmayan və ya oxunmayan sahələr üçün null qaytar.
+Tarixləri GG.AA.İİİİ formatında ver. Cins: MALE, FEMALE və ya UNKNOWN.
+Yalnız aşağıdakı JSON sxemi ilə cavab ver:
+{
+  "firstName": string|null,
+  "lastName": string|null,
+  "patronymic": string|null,
+  "dateOfBirth": string|null,
+  "finCode": string|null,
+  "gender": "MALE"|"FEMALE"|"UNKNOWN"|null,
+  "documentNumber": string|null,
+  "issueDate": string|null,
+  "expiryDate": string|null,
+  "issuingAuthority": string|null,
+  "confidence": number (0..1),
+  "requiresManualReview": boolean
+}`;
 
 /**
  * AI olmadan mətndən deterministik (regex) çıxarış — uydurma yoxdur.
@@ -16,7 +37,7 @@ export function extractIdentityDeterministic(
 ): ExtractedIdentity {
   const fins = [...text.matchAll(FIN_REGEX)]
     .map((m) => m[1])
-    .filter((f) => /[A-Z]/.test(f) && /[0-9]/.test(f)); // ən azı bir hərf+rəqəm
+    .filter((f) => /[A-Z]/.test(f) && /[0-9]/.test(f));
   const dates = [...text.matchAll(DATE_REGEX)].map((m) => normalizeDate(m[1]).normalized).filter(Boolean);
 
   const lower = text.toLocaleLowerCase("az");
@@ -47,8 +68,8 @@ export function extractIdentityDeterministic(
 
 /**
  * Mətndən identifikasiya məlumatını çıxarır.
- * AI aktivdirsə onu istifadə edir (nəticəni normallaşdırır), əks halda
- * və ya xəta zamanı deterministik fallback-a keçir. Heç nə uydurulmur.
+ * AI aktivdirsə onu istifadə edir (nəticəni Zod ilə yoxlayır və normallaşdırır),
+ * əks halda və ya xəta zamanı deterministik fallback-a keçir. Heç nə uydurulmur.
  */
 export async function extractIdentity(
   text: string,
@@ -62,8 +83,12 @@ export async function extractIdentity(
   }
 
   try {
-    const ai = await provider.extractIdentity(text);
-    // AI dəyərlərini təhlükəsiz normallaşdır (tarix/FİN format).
+    const raw = await provider.chatJson(
+      IDENTITY_SYSTEM_PROMPT,
+      `Şəxsiyyət vəsiqəsi mətni:\n\n${text.slice(0, 6000)}`,
+    );
+    const ai = ExtractedIdentitySchema.parse(raw);
+
     const normalizedDob = ai.dateOfBirth ? normalizeDate(ai.dateOfBirth).normalized : null;
     const normalizedFin = ai.finCode ? normalizeFin(ai.finCode).normalized : null;
 

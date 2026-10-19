@@ -50,7 +50,7 @@ export function IdentityUploadStep({
         accept=".pdf,.txt,.jpg,.jpeg,.png,.webp,.docx,.doc"
         multiple
         onFiles={handleFiles}
-        hint="PDF (çoxlu vəsiqə dəstəklənir), TXT • skan/şəkil OCR bu versiyada manual yoxlama tələb edir"
+        hint="PDF, Word (.docx), TXT — çoxlu vəsiqə AI ilə çıxarılır • skan/şəkil OCR manual yoxlama tələb edir"
       />
 
       {busy && (
