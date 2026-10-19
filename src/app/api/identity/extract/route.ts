@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { extractPdfText } from "@/lib/pdf/extract";
 import { extractDocxText } from "@/lib/document/docx";
+import { extractDocxImages } from "@/lib/document/docx-images";
 import { segmentDocument } from "@/lib/document/segment";
-import { extractIdentity } from "@/lib/ai";
+import { extractIdentity, extractIdentityFromImage, getAIProvider } from "@/lib/ai";
 import type { ExtractedIdentity } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
-const MAX_SEGMENTS_PER_FILE = 60;
+const MAX_ITEMS_PER_FILE = 120;
 
-function manualReviewPlaceholder(fileName: string, note: string): ExtractedIdentity {
+function manualReviewPlaceholder(sourceFile: string, pageNumber: number | null, note: string): ExtractedIdentity {
   return {
     firstName: null,
     lastName: null,
@@ -24,12 +25,22 @@ function manualReviewPlaceholder(fileName: string, note: string): ExtractedIdent
     issuingAuthority: null,
     confidence: 0,
     requiresManualReview: true,
-    sourceFile: `${fileName} — ${note}`,
-    pageNumber: null,
+    sourceFile,
+    pageNumber,
     method: "manual",
     model: null,
+    rawText: note,
   };
 }
+
+const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
+const MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
 
 export async function POST(req: Request) {
   try {
@@ -39,48 +50,82 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Sənəd tapılmadı." }, { status: 400 });
     }
 
+    const provider = getAIProvider();
+    const canVision = provider.isEnabled() && provider.supportsVision();
     const identities: ExtractedIdentity[] = [];
     const warnings: string[] = [];
 
     for (const file of files) {
-      const name = file.name.toLowerCase();
-      if (name.endsWith(".pdf")) {
-        const buffer = await file.arrayBuffer();
-        const pdf = await extractPdfText(buffer);
-        if (pdf.likelyScanned) {
-          warnings.push(`${file.name}: skan edilmiş görünür — bu versiyada OCR yoxdur, manual yoxlama lazımdır.`);
-          identities.push(manualReviewPlaceholder(file.name, "skan/OCR tələb olunur"));
-          continue;
+      const name = file.name;
+      const lower = name.toLowerCase();
+
+      try {
+        if (lower.endsWith(".docx")) {
+          // 1) Word içindəki şəkilləri (ID kartları) çıxar → hər birini vision ilə oxu.
+          const buffer = await file.arrayBuffer();
+          const images = await extractDocxImages(buffer);
+
+          if (images.length > 0 && canVision) {
+            const limited = images.slice(0, MAX_ITEMS_PER_FILE);
+            if (images.length > MAX_ITEMS_PER_FILE) {
+              warnings.push(`${name}: ${MAX_ITEMS_PER_FILE} şəkil limitinə çatdı, qalanı emal olunmadı.`);
+            }
+            for (let i = 0; i < limited.length; i++) {
+              try {
+                const id = await extractIdentityFromImage([limited[i].dataUrl], name, i + 1);
+                identities.push(id);
+              } catch (e) {
+                warnings.push(`${name} (şəkil ${i + 1}): ${(e as Error).message}`);
+                identities.push(manualReviewPlaceholder(name, i + 1, "şəkil oxunmadı — təkrar emal lazımdır"));
+              }
+            }
+          } else {
+            // Şəkil yoxdursa mətnə keç.
+            const text = await extractDocxText(buffer);
+            if (text.length < 10) {
+              warnings.push(
+                `${name}: Word daxilində oxunabilən mətn/şəkil tapılmadı${canVision ? "" : " (vision AI deaktivdir)"}.`,
+              );
+              identities.push(manualReviewPlaceholder(name, null, "boş və ya vision deaktiv"));
+            } else {
+              for (const seg of segmentDocument([text]).slice(0, MAX_ITEMS_PER_FILE)) {
+                identities.push(await extractIdentity(seg.text, name, seg.pageNumber));
+              }
+            }
+          }
+        } else if (IMAGE_EXT.test(lower)) {
+          // Müstəqil şəkil faylı → vision OCR.
+          if (!canVision) {
+            warnings.push(`${name}: şəkil üçün vision AI deaktivdir — manual yoxlama lazımdır.`);
+            identities.push(manualReviewPlaceholder(name, null, "vision deaktiv"));
+          } else {
+            const buffer = await file.arrayBuffer();
+            const ext = (lower.split(".").pop() || "jpeg").toLowerCase();
+            const mime = MIME[ext] || "image/jpeg";
+            const dataUrl = `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`;
+            identities.push(await extractIdentityFromImage([dataUrl], name, null));
+          }
+        } else if (lower.endsWith(".pdf")) {
+          const buffer = await file.arrayBuffer();
+          const pdf = await extractPdfText(buffer);
+          if (pdf.likelyScanned) {
+            warnings.push(`${name}: skan edilmiş PDF — bu versiyada PDF şəkil OCR yoxdur, manual yoxlama lazımdır.`);
+            identities.push(manualReviewPlaceholder(name, null, "skan PDF — OCR lazımdır"));
+          } else {
+            for (const seg of segmentDocument(pdf.pages).slice(0, MAX_ITEMS_PER_FILE)) {
+              identities.push(await extractIdentity(seg.text, name, seg.pageNumber));
+            }
+          }
+        } else if (lower.endsWith(".txt")) {
+          identities.push(await extractIdentity(await file.text(), name, null));
+        } else {
+          warnings.push(`${name}: bu format (.doc və s.) hələ dəstəklənmir, manual yoxlama lazımdır.`);
+          identities.push(manualReviewPlaceholder(name, null, "format dəstəklənmir"));
         }
-        const segments = segmentDocument(pdf.pages).slice(0, MAX_SEGMENTS_PER_FILE);
-        if (segments.length === MAX_SEGMENTS_PER_FILE) {
-          warnings.push(`${file.name}: ${MAX_SEGMENTS_PER_FILE} sənəd limitinə çatdı, qalanı emal olunmadı.`);
-        }
-        for (const seg of segments) {
-          const identity = await extractIdentity(seg.text, file.name, seg.pageNumber);
-          identities.push(identity);
-        }
-      } else if (name.endsWith(".docx")) {
-        // Word sənədi — mətn çıxar, çoxlu vəsiqə üçün seqmentlə, AI ilə emal et.
-        const buffer = await file.arrayBuffer();
-        const text = await extractDocxText(buffer);
-        if (text.length < 10) {
-          warnings.push(`${file.name}: Word sənədindən mətn çıxarılmadı (şəkil ola bilər) — manual yoxlama lazımdır.`);
-          identities.push(manualReviewPlaceholder(file.name, "boş/şəkilli Word"));
-          continue;
-        }
-        const segments = segmentDocument([text]).slice(0, MAX_SEGMENTS_PER_FILE);
-        for (const seg of segments) {
-          identities.push(await extractIdentity(seg.text, file.name, seg.pageNumber));
-        }
-      } else if (name.endsWith(".txt")) {
-        const text = await file.text();
-        const identity = await extractIdentity(text, file.name, null);
-        identities.push(identity);
-      } else {
-        // Şəkil və köhnə .doc bu versiyada OCR/çevirmə dəstəkləmir.
-        warnings.push(`${file.name}: bu format (şəkil/.doc) hələ dəstəklənmir, manual yoxlama lazımdır.`);
-        identities.push(manualReviewPlaceholder(file.name, "format dəstəklənmir"));
+      } catch (e) {
+        // Bir faylın xətası bütün batch-i dayandırmasın.
+        warnings.push(`${name}: emal xətası — ${(e as Error).message}`);
+        identities.push(manualReviewPlaceholder(name, null, `emal xətası: ${(e as Error).message}`));
       }
     }
 

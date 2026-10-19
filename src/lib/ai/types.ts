@@ -28,6 +28,13 @@ export interface AIProvider {
    * Çağıran tərəf nəticəni Zod ilə yoxlamalıdır — AI çıxışına güvənilmir.
    */
   chatJson(systemPrompt: string, userPrompt: string): Promise<unknown>;
+  /** Provayder şəkil (vision) girişini dəstəkləyirmi? */
+  supportsVision(): boolean;
+  /**
+   * Şəkil(lər) + mətn promptu göndərir və JSON cavabı qaytarır (vision OCR).
+   * images: data URL-lər (data:image/jpeg;base64,...).
+   */
+  chatVisionJson(systemPrompt: string, userText: string, imageDataUrls: string[]): Promise<unknown>;
 }
 
 export class AIDisabledError extends Error {

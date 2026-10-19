@@ -26,6 +26,73 @@ Yalnız aşağıdakı JSON sxemi ilə cavab ver:
   "requiresManualReview": boolean
 }`;
 
+const IDENTITY_VISION_PROMPT = `Sən Azərbaycan şəxsiyyət vəsiqələrini (foto/skan) oxuyan dəqiq OCR köməkçisisən.
+Şəkildəki şəxsiyyət vəsiqəsindən YALNIZ açıq görünən məlumatları oxu. Heç nə UYDURMA.
+Vəsiqənin ön və arxa tərəfi, latın və kiril hərfləri ola bilər — hamısını nəzərə al.
+Oxunmayan sahələr üçün null qaytar. Tarixləri GG.AA.İİİİ formatında ver.
+Cins: kişi→MALE, qadın→FEMALE, bilinmirsə UNKNOWN.
+Yalnız bu JSON sxemi ilə cavab ver:
+{
+  "firstName": string|null, "lastName": string|null, "patronymic": string|null,
+  "dateOfBirth": string|null, "finCode": string|null,
+  "gender": "MALE"|"FEMALE"|"UNKNOWN"|null, "documentNumber": string|null,
+  "issueDate": string|null, "expiryDate": string|null, "issuingAuthority": string|null,
+  "confidence": number(0..1), "requiresManualReview": boolean
+}`;
+
+function mapAiIdentity(
+  ai: ReturnType<typeof ExtractedIdentitySchema.parse>,
+  sourceFile: string,
+  pageNumber: number | null,
+  method: ExtractedIdentity["method"],
+  model: string | null,
+  rawText?: string,
+): ExtractedIdentity {
+  const normalizedDob = ai.dateOfBirth ? normalizeDate(ai.dateOfBirth).normalized : null;
+  const normalizedFin = ai.finCode ? normalizeFin(ai.finCode).normalized : null;
+  return {
+    firstName: ai.firstName,
+    lastName: ai.lastName,
+    patronymic: ai.patronymic,
+    dateOfBirth: normalizedDob ?? ai.dateOfBirth,
+    finCode: normalizedFin ?? ai.finCode,
+    gender: ai.gender,
+    documentNumber: ai.documentNumber,
+    issueDate: ai.issueDate,
+    expiryDate: ai.expiryDate,
+    issuingAuthority: ai.issuingAuthority,
+    confidence: ai.confidence,
+    requiresManualReview: ai.requiresManualReview || ai.confidence < 0.6,
+    sourceFile,
+    pageNumber,
+    method,
+    model,
+    rawText,
+  };
+}
+
+/**
+ * Şəkildən (ID kartı foto/skan) vision OCR ilə identifikasiya çıxarır.
+ * AI deaktiv/vision yoxdursa xəta atır (çağıran manual review placeholder qoyur).
+ */
+export async function extractIdentityFromImage(
+  imageDataUrls: string[],
+  sourceFile: string,
+  pageNumber: number | null,
+): Promise<ExtractedIdentity> {
+  const provider = getAIProvider();
+  if (!provider.isEnabled() || !provider.supportsVision()) {
+    throw new Error("Vision AI əlçatan deyil.");
+  }
+  const raw = await provider.chatVisionJson(
+    IDENTITY_VISION_PROMPT,
+    "Bu şəkildəki şəxsiyyət vəsiqəsini oxu və JSON qaytar.",
+    imageDataUrls,
+  );
+  const ai = ExtractedIdentitySchema.parse(raw);
+  return mapAiIdentity(ai, sourceFile, pageNumber, "ai", `${provider.name}-vision`);
+}
+
 /**
  * AI olmadan mətndən deterministik (regex) çıxarış — uydurma yoxdur.
  * Nəticə həmişə manual yoxlama tələb edir, aşağı inamla.

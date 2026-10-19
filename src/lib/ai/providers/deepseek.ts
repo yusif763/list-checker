@@ -4,6 +4,7 @@ interface DeepSeekConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  visionModel: string;
 }
 
 export class DeepSeekProvider implements AIProvider {
@@ -18,6 +19,7 @@ export class DeepSeekProvider implements AIProvider {
         apiKey,
         baseUrl: (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, ""),
         model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+        visionModel: process.env.DEEPSEEK_VISION_MODEL || "deepseek-chat",
       };
     } else {
       this.config = null;
@@ -28,7 +30,11 @@ export class DeepSeekProvider implements AIProvider {
     return this.config !== null;
   }
 
-  async chatJson(systemPrompt: string, userPrompt: string): Promise<unknown> {
+  supportsVision(): boolean {
+    return this.config !== null;
+  }
+
+  private async request(model: string, messages: unknown[], maxTokens?: number): Promise<unknown> {
     if (!this.config) throw new AIDisabledError();
 
     const res = await fetch(`${this.config.baseUrl}/chat/completions`, {
@@ -38,14 +44,11 @@ export class DeepSeekProvider implements AIProvider {
         Authorization: `Bearer ${this.config.apiKey}`,
       },
       body: JSON.stringify({
-        model: this.config.model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        model,
+        messages,
         temperature: 0,
-        // DeepSeek json_object rejimi üçün prompt-da "json" sözü olmalıdır
-        // (system prompt-larda təmin olunur).
+        ...(maxTokens ? { max_tokens: maxTokens } : {}),
+        // DeepSeek json_object rejimi üçün prompt-da "json" sözü olmalıdır.
         response_format: { type: "json_object" },
       }),
     });
@@ -62,7 +65,39 @@ export class DeepSeekProvider implements AIProvider {
     try {
       return JSON.parse(content);
     } catch {
-      throw new Error("DeepSeek cavabı düzgün JSON deyil.");
+      // Bəzən cavab ```json ... ``` bloku içində gəlir — təmizlə.
+      const cleaned = content.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        throw new Error("DeepSeek cavabı düzgün JSON deyil.");
+      }
     }
+  }
+
+  async chatJson(systemPrompt: string, userPrompt: string): Promise<unknown> {
+    return this.request(this.config?.model ?? "deepseek-chat", [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ]);
+  }
+
+  async chatVisionJson(
+    systemPrompt: string,
+    userText: string,
+    imageDataUrls: string[],
+  ): Promise<unknown> {
+    const content: unknown[] = [{ type: "text", text: userText }];
+    for (const url of imageDataUrls) {
+      content.push({ type: "image_url", image_url: { url } });
+    }
+    return this.request(
+      this.config?.visionModel ?? "deepseek-chat",
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+      800,
+    );
   }
 }
