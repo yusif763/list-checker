@@ -13,6 +13,10 @@ const FIELDS: CanonicalField[] = [
   "email",
   "gender",
   "documentNumber",
+  "position",
+  "subject",
+  "region",
+  "workplace",
 ];
 
 const MappingItemSchema = z.object({
@@ -44,6 +48,10 @@ Hər sütunu YALNIZ bu kanonik sahələrdən birinə uyğunlaşdır (və ya aid 
 - email (E-poçt)
 - gender (Cins)
 - documentNumber (Sənəd nömrəsi)
+- position (Vəzifə, məs. Müəllim)
+- subject (Tədris etdiyi fənn, məs. İngilis dili)
+- region (Rayon / şəhər)
+- workplace (İşlədiyi müəssisə / məktəb)
 
 Qaydalar:
 - Başlıq adı ilə yanaşı nümunə dəyərlərə də bax (məs. ABC1234 → finCode, 15.08.1990 → dateOfBirth).

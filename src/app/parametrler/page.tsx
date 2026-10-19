@@ -1,24 +1,22 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import { aiStatus } from "@/lib/api";
-import { useStore } from "@/lib/store";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Card } from "@/components/ui";
 
 export default function SettingsPage() {
-  const store = useStore();
   const { data: ai } = useQuery({ queryKey: ["ai-status"], queryFn: aiStatus });
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Parametrlər</h1>
-        <p className="text-sm text-slate-500">Sistem vəziyyəti və sessiya idarəetməsi</p>
+        <p className="text-sm text-slate-500">Sistem vəziyyəti</p>
       </div>
 
       <Card className="p-5">
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">AI provayderi</h2>
+        <h2 className="mb-3 text-sm font-semibold text-slate-700">AI provayderi (DeepSeek)</h2>
         <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
           <div className="flex items-center gap-2">
             {ai?.enabled ? (
@@ -31,36 +29,19 @@ export default function SettingsPage() {
           <Badge tone={ai?.enabled ? "green" : "gray"}>{ai?.enabled ? "Aktiv" : "Deaktiv"}</Badge>
         </div>
         <p className="mt-3 text-xs text-slate-500">
-          AI deaktiv olduqda sənəd çıxarışı deterministik (regex) üsulla işləyir və bütün
-          deterministik yoxlamalar (FİN, telefon, tarix, e-poçt) tam fəaliyyət göstərir. Açarı
-          <code className="mx-1 rounded bg-slate-100 px-1">.env.local</code> faylında
+          AI həm Excel strukturunun analizi (başlıq/sütun aşkarlama), həm də şəxsiyyət
+          vəsiqələrinin vision OCR çıxarışı üçün istifadə olunur. Açarı{" "}
           <code className="mx-1 rounded bg-slate-100 px-1">DEEPSEEK_API_KEY</code> ilə təyin edin.
+          AI deaktiv olduqda deterministik yoxlamalar işləməyə davam edir.
         </p>
       </Card>
 
-      <Card className="p-5">
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">Sessiya məlumatları</h2>
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          <div className="rounded-lg bg-slate-50 p-3">
-            <div className="text-xs text-slate-500">Yekun qeydlər</div>
-            <div className="text-lg font-bold text-slate-800">{store.finalRecords.length}</div>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <div className="text-xs text-slate-500">Əsas qeydlər</div>
-            <div className="text-lg font-bold text-slate-800">{store.mainRecords.length}</div>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <div className="text-xs text-slate-500">Vəsiqələr</div>
-            <div className="text-lg font-bold text-slate-800">{store.identities.length}</div>
-          </div>
-        </div>
-        <div className="mt-4">
-          <Button variant="danger" onClick={() => store.resetAll()}>
-            <Trash2 className="h-4 w-4" /> Bütün sessiya məlumatlarını sil
-          </Button>
-        </div>
-        <p className="mt-2 text-xs text-slate-500">
-          Məlumatlar yalnız brauzer sessiyasında saxlanılır, serverdə heç nə qeyd olunmur.
+      <Card className="p-5 text-sm text-slate-600">
+        <h2 className="mb-2 text-sm font-semibold text-slate-700">Saxlama</h2>
+        <p className="text-xs text-slate-500">
+          Layihələr, fayllar və nəticələr Netlify Blobs-da (lokal inkişafda{" "}
+          <code className="rounded bg-slate-100 px-1">.data/</code> qovluğunda) saxlanılır.
+          Məlumatlar deploy-lar arası qalır.
         </p>
       </Card>
     </div>

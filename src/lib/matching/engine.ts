@@ -15,6 +15,10 @@ const COMPARE_FIELDS: CanonicalField[] = [
   "finCode",
   "gender",
   "documentNumber",
+  "position",
+  "subject",
+  "region",
+  "workplace",
 ];
 
 const NAME_FUZZY_THRESHOLD = 0.9;

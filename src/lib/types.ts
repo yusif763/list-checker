@@ -12,7 +12,11 @@ export type CanonicalField =
   | "phone"
   | "email"
   | "gender"
-  | "documentNumber";
+  | "documentNumber"
+  | "position"
+  | "subject"
+  | "region"
+  | "workplace";
 
 export const CANONICAL_FIELD_LABELS: Record<CanonicalField, string> = {
   firstName: "Ad",
@@ -25,6 +29,10 @@ export const CANONICAL_FIELD_LABELS: Record<CanonicalField, string> = {
   email: "E-poçt",
   gender: "Cins",
   documentNumber: "Sənəd nömrəsi",
+  position: "Vəzifə",
+  subject: "Tədris etdiyi fənn",
+  region: "Rayon / şəhər",
+  workplace: "İşlədiyi müəssisə",
 };
 
 export type Gender = "MALE" | "FEMALE" | "UNKNOWN";

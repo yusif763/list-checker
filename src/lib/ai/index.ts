@@ -4,6 +4,7 @@ import { DeepSeekProvider } from "./providers/deepseek";
 export * from "./types";
 export * from "./document-extraction";
 export * from "./column-mapping";
+export * from "./structure";
 
 let cached: AIProvider | null = null;
 

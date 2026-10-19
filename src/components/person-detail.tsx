@@ -9,7 +9,8 @@ import {
   type VerificationRow,
 } from "@/lib/types";
 import { Badge, Button, Card } from "@/components/ui";
-import { useStore } from "@/lib/store";
+import type { CanonicalField } from "@/lib/types";
+import type { CorrectionsMap } from "@/lib/excel/export";
 
 const MATCH_TONE: Record<MatchStatus, "green" | "red" | "amber" | "blue"> = {
   found: "green",
@@ -68,9 +69,20 @@ function ComparisonTable({
   );
 }
 
-export function PersonDetail({ row, onClose }: { row: VerificationRow; onClose: () => void }) {
-  const store = useStore();
-  const corrections = store.corrections[row.record.id] ?? {};
+export function PersonDetail({
+  row,
+  onClose,
+  corrections: allCorrections,
+  onSetCorrection,
+  onClearCorrection,
+}: {
+  row: VerificationRow;
+  onClose: () => void;
+  corrections: CorrectionsMap;
+  onSetCorrection: (recordId: string, field: CanonicalField, value: string) => void;
+  onClearCorrection: (recordId: string, field: CanonicalField) => void;
+}) {
+  const corrections = allCorrections[row.record.id] ?? {};
 
   const name =
     [row.record.normalized.lastName, row.record.normalized.firstName, row.record.normalized.patronymic]
@@ -188,7 +200,7 @@ export function PersonDetail({ row, onClose }: { row: VerificationRow; onClose: 
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => store.clearCorrection(row.record.id, issue.field)}
+                              onClick={() => onClearCorrection(row.record.id, issue.field)}
                             >
                               Geri al
                             </Button>
@@ -196,7 +208,7 @@ export function PersonDetail({ row, onClose }: { row: VerificationRow; onClose: 
                             <Button
                               size="sm"
                               onClick={() =>
-                                store.setCorrection(row.record.id, issue.field, issue.suggestion!)
+                                onSetCorrection(row.record.id, issue.field, issue.suggestion!)
                               }
                             >
                               <Check className="h-3 w-3" /> Qəbul et

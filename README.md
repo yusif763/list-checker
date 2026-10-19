@@ -1,107 +1,93 @@
 # Siyahı Yoxlama Sistemi
 
-AI əsaslı **Excel və şəxsiyyət sənədi yoxlama platforması**. Next.js (App Router) +
-TypeScript ilə qurulub, tam **Netlify-a uyğun** (serverless) — verilənlər bazası, Redis və
-ya davamlı fayl saxlama tələb etmir.
+AI əsaslı **Excel və şəxsiyyət sənədi yoxlama platforması** — **layihə (sessiya) əsaslı**,
+davamlı saxlamalı. Next.js (App Router) + TypeScript, tam **Netlify-a uyğun**.
 
 İnterfeys tam **Azərbaycan dilindədir**.
 
-> **Əsas qayda:** Yekun Siyahı (Final List) əsas mənbədir. Bütün yoxlama, müqayisə və
-> hesabatlar Yekun Siyahının şəxsləri ətrafında qurulur. Müqayisə istiqaməti həmişə
-> **Yekun → Əsas** və **Yekun ↔ Şəxsiyyət vəsiqəsi**-dir.
+> **Əsas qayda:** Yekun Siyahı əsas mənbədir. Bütün yoxlama, müqayisə və hesabatlar onun
+> şəxsləri ətrafında qurulur. İstiqamət həmişə **Yekun → Əsas** və **Yekun ↔ Vəsiqə**.
+
+## Layihə sistemi
+
+Hər layihənin (məs. "Sabirabad") öz məlumatı ayrıca saxlanılır:
+
+1. **Yekun siyahı** — əsas məlumat mənbəyi.
+2. **Əsas siyahı** — Yekun ilə müqayisə üçün istinad.
+3. **Şəxsiyyət vəsiqələri** — PDF, Word və şəkil; tək və ya toplu (bir faylda çox vəsiqə).
+
+Layihələr, fayllar və nəticələr **Netlify Blobs**-da saxlanılır (lokal inkişafda `.data/`).
+İstifadəçi sonra qayıdıb nəticələri görə, yeni fayl əlavə edə və yenidən emal edə bilər.
+
+## İş axını (layihə daxilində)
+
+1. **Yüklə** — Yekun, Əsas və vəsiqə fayllarını layihəyə bağla.
+2. **Vəsiqə emalı** — addım-addım: hər fayl ayrıca emal olunur, status (gözləyir/emal/hazır/xəta)
+   görünür, uğursuzlar təkrar emal edilə bilir. Bir xəta bütün prosesi dayandırmır.
+3. **Nəticələr** — metrikalar, filtrlənən cədvəl, şəxs detalı (sahə-sahə müqayisə), düzəlişlər.
+4. **Hesabat** — düzəldilmiş Yekun + tam hesabat + səhvlər + əsasda yoxlar + vəsiqə
+   uyğunsuzluqları + təkrarlar, bir Excel faylında.
 
 ## Nə işləyir
 
-- **Dinamik Excel importu** — `.xlsx/.xls/.csv`, başlıq sətrinin avtomatik aşkarlanması
-  (məs. 3-cü sətirdə), çoxlu vərəq, fərqli sütun adları (AZ/EN), sütun uyğunlaşdırma
-  önizləməsi və əl ilə düzəliş.
-- **AI sütun uyğunlaşdırma** — qayda əsaslı aşkarlama başlıqları tanımadıqda DeepSeek
-  başlıqları (+ nümunə dəyərləri) analiz edib kanonik sahələrə uyğunlaşdırır.
-- **Birləşmiş tam ad ayrılması** — `Məmmədov Əli Hüseyn oğlu` → soyad/ad/ata adı
-  (qeyri-müəyyən hallar yoxlamaya göndərilir).
-- **Deterministik yoxlama mühərriki** — FİN, telefon `(0XX) XXX XX XX`, tarix `GG.AA.İİİİ`
-  (Excel serial dəstəyi), e-poçt, ad, cins. Azərbaycan hərfləri (`ə ı ö ü ğ ş ç`) qorunur.
-- **Uyğunlaşdırma mühərriki** — FİN-dəqiq → tam kimlik → qismən → fuzzy
-  (Levenshtein, Jaro-Winkler). Yalnız ad/soyad eyniliyi dəqiq uyğunluq sayılmır.
-- **Təkrar aşkarlanması** — eyni FİN/eyni şəxs, eyni FİN/fərqli ad, eyni ad/fərqli FİN,
-  fuzzy ehtimal. Mənbə (fayl, vərəq, sətir) izlənilir.
-- **Şəxsiyyət vəsiqəsi emalı** — PDF (serverless `unpdf`) və **Word `.docx`** (mammoth) mətn
-  çıxarışı, bir sənəddə/səhifədə **çoxlu vəsiqə seqmentasiyası**, DeepSeek ilə sahə çıxarışı
-  (sxemlə yoxlanır), Yekun Siyahı ilə sahə-sahə müqayisə.
-- **Yekun-mərkəzli panel və hesabatlar** — metrikalar, filtrlənə bilən cədvəl, şəxs detalı,
-  düzəlişlər (təsdiq/geri al, audit), 6 vərəqli Excel ixracı.
+- **AI-əsaslı Excel strukturu** — başlıq sətri avtomatik tapılır (hətta 5-ci sətirdə),
+  **başlıqsız fayllar** AI ilə dəyərlərdən təhlil olunur, çoxlu vərəq arasından ən zəngin
+  vərəq seçilir, fərqli sütun adları (AZ/EN).
+- **Birləşmiş ad ayrılması** — "Soyadı, Adı, Atasının adı" (oğlu/qızı ilə və ya olmadan).
+- **Deterministik yoxlama** — FİN, telefon `(0XX) XXX XX XX`, tarix `GG.AA.İİİİ` (Excel serial),
+  e-poçt, ad, cins. Azərbaycan hərfləri qorunur.
+- **Vəsiqə çıxarışı (DeepSeek vision OCR)** — Word daxilindəki ID şəkilləri, müstəqil şəkillər
+  (JPG/PNG/WEBP) və mətnli PDF/Word. Bir sənəddə çoxlu vəsiqə ayrı-ayrı emal olunur.
+- **Uyğunlaşdırma** — FİN-dəqiq → tam kimlik → fuzzy (Levenshtein/Jaro-Winkler).
+- **Bütün sütunların müqayisəsi** — ad, FİN, doğum, cins, vəzifə, fənn, rayon, müəssisə.
+- **Təkrar aşkarlanması**, düzəlişlər (audit) və Excel ixracı.
 
 ## Memarlıq
 
 ```
 src/
-  app/                 # səhifələr (panel, yüklə, təkrarlar, düzəlişlər, hesabatlar, parametrlər)
-    api/               # route handlers (excel/detect, excel/records, identity/extract, ai/status)
-  components/          # UI (dropzone, sütun uyğunlaşdırma, şəxs detalı, və s.)
+  app/
+    api/projects/...   # layihə CRUD, upload, process (addım-addım), corrections, fayl
+    layihe/[id]/       # layihə iş sahəsi (yüklə / emal / nəticələr / hesabat)
+  components/project/  # upload-panel, process-panel, results-panel
   lib/
-    validation/        # deterministik yoxlama (FİN, telefon, tarix, e-poçt, ad, cins) + ad ayrılması
-    excel/             # parse, sahə aşkarlama, qeyd qurma, ixrac
-    matching/          # string oxşarlığı, uyğunlaşdırma mühərriki, təkrarlar
-    pdf/               # PDF mətn çıxarışı (unpdf)
-    document/          # çoxlu vəsiqə seqmentasiyası
-    ai/                # provayderdən asılı olmayan AI qatı + DeepSeek + sənəd çıxarışı
-    verification/      # Yekun-mərkəzli birləşdirici (sətirlər + metrikalar)
-    store.tsx          # sessiya konteksti (brauzer yaddaşı)
+    storage/           # Netlify Blobs + lokal fayl sistemi fallback
+    projects/          # layihə modeli, repozitoriya, client
+    excel/             # parse, AI struktur analizi, qeyd qurma, ixrac
+    ai/                # DeepSeek (mətn + vision), struktur/sütun aşkarlama, çıxarış
+    document/          # Word şəkil çıxarışı, seqmentasiya, vəsiqə emalı
+    matching/ validation/ verification/
 ```
-
-**Vəziyyət:** Heç nə serverdə saxlanmır. Fayllar serverdə emal olunur, nəticələr brauzerə
-qaytarılır və yalnız sessiya yaddaşında (`sessionStorage`) qalır. Bütün uyğunlaşdırma/yoxlama
-hesablamaları brauzerdə (`buildVerification`) aparılır.
-
-**İnterfeyslər arxasında:** `AIProvider` (DeepSeek → OpenAI və s. əlavə oluna bilər). Gələcəkdə
-verilənlər bazası/növbə əlavə etmək üçün qat ayrılığı saxlanılıb.
 
 ## Quraşdırma
 
 ```bash
 npm install
-cp .env.example .env.local   # DEEPSEEK_API_KEY təyin edin (istəyə bağlı)
+cp .env.example .env.local   # DEEPSEEK_API_KEY təyin edin
 npm run dev                  # http://localhost:3000
 ```
 
-### Mühit dəyişənləri (`.env.local`)
+### Mühit dəyişənləri
 
 | Dəyişən | Təsvir |
 |---|---|
-| `DEEPSEEK_API_KEY` | DeepSeek açarı. **Boş olduqda AI deaktiv olur** — deterministik yoxlama işləməyə davam edir. |
-| `DEEPSEEK_BASE_URL` | Defolt: `https://api.deepseek.com` |
-| `DEEPSEEK_MODEL` | Defolt: `deepseek-chat` |
-| `AI_ENABLED` | `false` təyin etsəniz, açar olsa belə AI deaktiv olur. |
+| `DEEPSEEK_API_KEY` | DeepSeek açarı (mətn + vision). Boşdursa AI deaktiv, deterministik yoxlama işləyir. |
+| `DEEPSEEK_BASE_URL` | Defolt `https://api.deepseek.com` |
+| `DEEPSEEK_MODEL` | Defolt `deepseek-chat` |
+| `DEEPSEEK_VISION_MODEL` | Vision model (defolt `deepseek-chat`) |
+
+Netlify-da bu dəyişənləri panel → Environment variables bölməsində əlavə edin.
 
 ## Əmrlər
 
 ```bash
-npm run dev      # inkişaf serveri
-npm run build    # production build
-npm start        # production server
-npm test         # vitest (36 test: yoxlama, uyğunlaşdırma, aşkarlama, ad ayrılması)
+npm run dev | build | start
+npm test     # vitest (yoxlama, uyğunlaşdırma, aşkarlama, ad ayrılması)
 ```
 
-## İş axını
+## Məhdudiyyətlər
 
-1. **Yüklə** → Yekun Siyahı (`.xlsx`) — sütunları təsdiqlə.
-2. **Yüklə** → Əsas Siyahı — Yekun ilə müqayisə olunur.
-3. **Yüklə** → Şəxsiyyət vəsiqələri (PDF) — çıxarılır və Yekun ilə müqayisə olunur.
-4. **Panel** → metrikalar, filtrlər, şəxs detalı.
-5. **Düzəlişlər** → təhlükəsiz formatı düzəlişlərini təsdiqlə.
-6. **Hesabatlar** → düzəldilmiş Yekun Siyahı + bütün hesabatları Excel kimi ixrac et.
-
-## Məhdudiyyətlər (bu versiyada)
-
-- **Saxlama yoxdur** — səhifə tam yeniləndikdə məlumat sıfırlanır (sessiya yaddaşı istisna).
-- **OCR/şəkil yoxdur** — skan edilmiş PDF və şəkillər manual yoxlama üçün işarələnir
-  (mətnli PDF-lər işləyir).
-- **Word `.docx` dəstəklənir** (AI ilə); köhnə `.doc` formatı hələ yox (manual yoxlama).
-- **Giriş (auth) yoxdur** — açıq rejim (istənilən vaxt əlavə oluna bilər).
-- **AI balansı** — DeepSeek hesabında balans olmadıqda çağırış uğursuz olur və sistem
-  deterministik (regex) çıxarışa keçir. Bu normaldır; balans artırılanda AI avtomatik işləyir.
-
-## Netlify-a deploy
-
-Repo Netlify-a bağlanır; `netlify.toml` və `@netlify/plugin-nextjs` konfiqurasiyası hazırdır.
-Netlify panelində `DEEPSEEK_API_KEY` mühit dəyişənini əlavə edin.
+- **Skan edilmiş PDF** (şəkil qatlı) hələ OCR olunmur — Word/şəkil vəsiqələri işləyir.
+- Köhnə `.doc` (yalnız `.docx`) dəstəklənmir.
+- Giriş (auth) yoxdur — açıq rejim.
+- Skan/oxunmayan vəsiqələr "manual yoxlama" kimi işarələnir və təkrar emal edilə bilir.

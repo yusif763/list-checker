@@ -50,6 +50,9 @@ export function buildRecords(
       if (value !== "") raw[m.field as CanonicalField] = value;
     }
 
+    // Heç bir uyğunlaşdırılmış sütunda dəyər yoxdursa, sətri at (boş qeyd).
+    if (Object.keys(raw).length === 0) continue;
+
     // Birləşmiş tam ad -> hissələr (ad/soyad ayrıca yoxdursa).
     if (raw.fullName && !raw.firstName && !raw.lastName) {
       const parsed = parseFullName(raw.fullName);

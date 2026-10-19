@@ -36,8 +36,12 @@ const EXACT: Record<CanonicalField, string[]> = {
   dateOfBirth: ["dogum tarixi", "dob", "birth date", "birthdate", "date of birth", "tevellud"],
   phone: ["telefon", "mobil nomre", "phone", "mobile", "nomre", "telefon nomresi", "elaqe nomresi"],
   email: ["e poct", "email", "e mail", "epoct", "elektron poct"],
-  gender: ["cins", "gender", "sex"],
+  gender: ["cins", "gender", "sex", "cinsi"],
   documentNumber: ["sened nomresi", "document number", "vesiqe nomresi", "seriya nomre"],
+  position: ["vezife", "vezifesi", "position", "v32zif"],
+  subject: ["fenn", "tedris etdiyi fenn", "subject", "ixtisas"],
+  region: ["rayon", "sehir", "rayon sehir", "region", "sehir rayon"],
+  workplace: ["isledigi muessise", "muessise", "is yeri", "mekteb", "workplace", "teskilat"],
 };
 
 // Qismən uyğunluq üçün açar söz hissələri (daha aşağı inamla).
@@ -53,6 +57,12 @@ const CONTAINS: Array<{ field: CanonicalField; token: string; confidence: number
   { field: "email", token: "mail", confidence: 0.8 },
   { field: "gender", token: "cins", confidence: 0.9 },
   { field: "lastName", token: "soyad", confidence: 0.8 },
+  { field: "position", token: "vezif", confidence: 0.8 },
+  { field: "subject", token: "fenn", confidence: 0.8 },
+  { field: "subject", token: "tedris", confidence: 0.75 },
+  { field: "region", token: "rayon", confidence: 0.8 },
+  { field: "workplace", token: "muessise", confidence: 0.8 },
+  { field: "workplace", token: "mekteb", confidence: 0.6 },
   { field: "firstName", token: "ad", confidence: 0.5 },
 ];
 

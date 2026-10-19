@@ -34,3 +34,6 @@ yarn-error.log*
 # vitest
 coverage
 .samples/
+
+# local storage
+.data/
