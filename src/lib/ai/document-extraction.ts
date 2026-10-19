@@ -31,6 +31,12 @@ const IDENTITY_VISION_PROMPT = `Sən Azərbaycan şəxsiyyət vəsiqələrini (f
 Vəsiqənin ön və arxa tərəfi, latın və kiril hərfləri ola bilər — hamısını nəzərə al.
 Oxunmayan sahələr üçün null qaytar. Tarixləri GG.AA.İİİİ formatında ver.
 Cins: kişi→MALE, qadın→FEMALE, bilinmirsə UNKNOWN.
+
+ÇOX VACİB — Azərbaycan hərflərini DƏQİQ oxu, adları "düzəltmə" və ya normalaşdırma:
+- ə, a, e AYRI hərflərdir. Məsələn "Məryam" ≠ "Məryəm", "Aytən" ≠ "Aytan". Kartda hansı hərf yazılıbsa, EYNİ onu yaz.
+- ı (nöqtəsiz) və i, o və ö, u və ü, g və ğ, s və ş, c və ç ayrı hərflərdir — qarışdırma.
+- Hərf əmin olmadıqda ən çox oxşayan Azərbaycan hərfini seç, amma mövcud bir ada "uyğunlaşdırma".
+- Böyük hərflərlə yazılıbsa belə, hərfləri dəyişmə (yalnız kartda görünəni köçür).
 Yalnız bu JSON sxemi ilə cavab ver:
 {
   "firstName": string|null, "lastName": string|null, "patronymic": string|null,

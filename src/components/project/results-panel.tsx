@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
+import { Spinner } from "@/components/ui";
+import type { AiCompareResult } from "@/lib/ai/compare";
 import {
   MATCH_STATUS_LABELS,
   type MatchStatus,
@@ -49,17 +51,36 @@ export function ResultsPanel({
   corrections,
   onSetCorrection,
   onClearCorrection,
+  aiComparisons,
+  onAnalyze,
+  aiEnabled,
+  hasMainList,
 }: {
   verification: VerificationOutput;
   corrections: CorrectionsMap;
   onSetCorrection: (recordId: string, field: CanonicalField, value: string) => void;
   onClearCorrection: (recordId: string, field: CanonicalField) => void;
+  aiComparisons: Record<string, AiCompareResult[]>;
+  onAnalyze: () => Promise<void>;
+  aiEnabled: boolean;
+  hasMainList: boolean;
 }) {
   const { rows, metrics } = verification;
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<VerificationRow | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const analyzedCount = Object.keys(aiComparisons).length;
+  const runAnalyze = async () => {
+    setAnalyzing(true);
+    try {
+      await onAnalyze();
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("az");
@@ -110,6 +131,21 @@ export function ResultsPanel({
         <StatCard label="Yanlış FİN" value={metrics.invalidFins} tone="red" />
         <StatCard label="Yanlış tarix" value={metrics.invalidDates} tone="red" />
       </div>
+
+      {hasMainList && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-3">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Sparkles className="h-4 w-4 text-brand-500" />
+            AI uyğunsuzluq təhlili — bütün sahələri Əsas siyahı ilə ağıllı müqayisə edir
+            (format/qısaltma fərqlərini nəzərə alır).
+            {analyzedCount > 0 && <span className="ml-1 text-slate-400">{analyzedCount}/{rows.length} təhlil olundu</span>}
+          </div>
+          <Button onClick={runAnalyze} disabled={analyzing || !aiEnabled}>
+            {analyzing ? <Spinner /> : <Sparkles className="h-4 w-4" />}
+            {aiEnabled ? "AI təhlili başlat" : "AI deaktiv"}
+          </Button>
+        </Card>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
@@ -243,6 +279,7 @@ export function ResultsPanel({
           corrections={corrections}
           onSetCorrection={onSetCorrection}
           onClearCorrection={onClearCorrection}
+          aiComparison={aiComparisons[selected.record.id]}
         />
       )}
     </div>

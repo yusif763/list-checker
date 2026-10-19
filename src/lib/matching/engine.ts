@@ -5,7 +5,7 @@ import type {
   MatchStatus,
   PersonRecord,
 } from "@/lib/types";
-import { normalizeForCompare, nameSimilarity } from "./string-similarity";
+import { normalizeForCompare, nameSimilarity, patronymicSimilarity } from "./string-similarity";
 
 const COMPARE_FIELDS: CanonicalField[] = [
   "lastName",
@@ -38,10 +38,10 @@ export function compareFields(a: PersonRecord, b: PersonRecord): FieldComparison
     if (av === null || bv === null) {
       status = "missing";
     } else {
-      const fuzzy = field === "firstName" || field === "lastName" || field === "patronymic";
-      const equal = fuzzy
-        ? nameSimilarity(av, bv) >= 0.97
-        : normalizeForCompare(av) === normalizeForCompare(bv);
+      const nameField = field === "firstName" || field === "lastName" || field === "patronymic";
+      const sim =
+        field === "patronymic" ? patronymicSimilarity(av, bv) : nameField ? nameSimilarity(av, bv) : 0;
+      const equal = nameField ? sim >= 0.97 : normalizeForCompare(av) === normalizeForCompare(bv);
       status = equal ? "match" : "mismatch";
     }
     result.push({ field, finalValue: av, referenceValue: bv, status });
@@ -72,7 +72,7 @@ function evaluateCandidate(final: PersonRecord, candidate: PersonRecord): Candid
 
   const lastSim = last && val(candidate, "lastName") ? nameSimilarity(last, val(candidate, "lastName")!) : 0;
   const firstSim = first && val(candidate, "firstName") ? nameSimilarity(first, val(candidate, "firstName")!) : 0;
-  const patrSim = patr && val(candidate, "patronymic") ? nameSimilarity(patr, val(candidate, "patronymic")!) : null;
+  const patrSim = patr && val(candidate, "patronymic") ? patronymicSimilarity(patr, val(candidate, "patronymic")!) : null;
   const dobMatch = dob && val(candidate, "dateOfBirth") ? normalizeForCompare(dob) === normalizeForCompare(val(candidate, "dateOfBirth")!) : null;
 
   const identityExact =

@@ -58,6 +58,12 @@ export async function processNext(
   );
 }
 
+export async function analyzeNext(
+  id: string,
+): Promise<{ analyzed: number; remaining: number; total: number }> {
+  return handle(await fetch(`/api/projects/${id}/analyze`, { method: "POST" }));
+}
+
 export async function saveCorrections(id: string, corrections: CorrectionsMap): Promise<void> {
   await handle(
     await fetch(`/api/projects/${id}/corrections`, {

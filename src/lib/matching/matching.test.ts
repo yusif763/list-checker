@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { CanonicalField, PersonRecord } from "@/lib/types";
 import { matchRecord } from "./engine";
 import { detectDuplicates } from "./duplicates";
-import { levenshtein, jaroWinkler, nameSimilarity } from "./string-similarity";
+import { levenshtein, jaroWinkler, nameSimilarity, patronymicSimilarity } from "./string-similarity";
+import { compareFields } from "./engine";
 
 function rec(id: string, fields: Partial<Record<CanonicalField, string>>): PersonRecord {
   return {
@@ -23,6 +24,19 @@ describe("string oxşarlığı", () => {
   it("jaroWinkler oxşar adlar üçün yüksəkdir", () => {
     expect(jaroWinkler("memmedov", "memmedov")).toBe(1);
     expect(nameSimilarity("Məmmədov", "Memmedov")).toBeGreaterThan(0.95);
+  });
+  it("patronim oğlu/qızı suffiksini nəzərə almır", () => {
+    expect(patronymicSimilarity("Əlibala", "Əlibala oğlu")).toBeGreaterThanOrEqual(0.97);
+    expect(patronymicSimilarity("Vəli qızı", "Vəli")).toBeGreaterThanOrEqual(0.97);
+  });
+});
+
+describe("sahə müqayisəsi — patronim suffiksi", () => {
+  it("'Əlibala' və 'Əlibala Oğlu' uyğun sayılır", () => {
+    const a = rec("a", { patronymic: "Əlibala" });
+    const b = rec("b", { patronymic: "Əlibala Oğlu" });
+    const comp = compareFields(a, b).find((c) => c.field === "patronymic");
+    expect(comp?.status).toBe("match");
   });
 });
 

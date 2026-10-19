@@ -4,7 +4,7 @@ import type {
   FieldComparison,
   PersonRecord,
 } from "@/lib/types";
-import { normalizeForCompare, nameSimilarity } from "@/lib/matching/string-similarity";
+import { normalizeForCompare, nameSimilarity, patronymicSimilarity } from "@/lib/matching/string-similarity";
 
 function recVal(record: PersonRecord, field: CanonicalField): string | null {
   return record.normalized[field] ?? record.raw[field] ?? null;
@@ -36,9 +36,14 @@ export function compareIdentityToRecord(
     if (finalValue === null || idValue === null) {
       status = "missing";
     } else {
-      const equal = def.fuzzy
-        ? nameSimilarity(finalValue, idValue) >= 0.95
-        : normalizeForCompare(finalValue) === normalizeForCompare(idValue);
+      const sim =
+        def.field === "patronymic"
+          ? patronymicSimilarity(finalValue, idValue)
+          : def.fuzzy
+            ? nameSimilarity(finalValue, idValue)
+            : null;
+      const equal =
+        sim !== null ? sim >= 0.95 : normalizeForCompare(finalValue) === normalizeForCompare(idValue);
       status = equal ? "match" : "mismatch";
     }
     comparisons.push({ field: def.field, finalValue, referenceValue: idValue, status });

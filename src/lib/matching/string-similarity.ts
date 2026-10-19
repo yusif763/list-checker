@@ -98,3 +98,15 @@ export function jaroWinkler(a: string, b: string, prefixScale = 0.1): number {
 export function nameSimilarity(a: string, b: string): number {
   return jaroWinkler(foldDiacritics(a), foldDiacritics(b));
 }
+
+/** Patronimdən oğlu/qızı suffiksini çıxarır ("Əlibala oğlu" → "Əlibala"). */
+export function stripPatronymicSuffix(value: string | null | undefined): string {
+  return normalizeForCompare(value)
+    .replace(/\s*(oğlu|oglu|qızı|qizi)\s*$/u, "")
+    .trim();
+}
+
+/** Patronim oxşarlığı — oğlu/qızı fərqini nəzərə almır. */
+export function patronymicSimilarity(a: string, b: string): number {
+  return jaroWinkler(foldDiacritics(stripPatronymicSuffix(a)), foldDiacritics(stripPatronymicSuffix(b)));
+}

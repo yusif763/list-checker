@@ -5,6 +5,7 @@ export * from "./types";
 export * from "./document-extraction";
 export * from "./column-mapping";
 export * from "./structure";
+export * from "./compare";
 
 let cached: AIProvider | null = null;
 
