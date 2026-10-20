@@ -1,5 +1,6 @@
 import type { CorrectionsMap } from "@/lib/excel/export";
 import type { FileKind, Project, ProjectSummary } from "./types";
+import { splitDocxToImageFiles } from "@/lib/client/docx-split";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -45,6 +46,24 @@ export async function uploadFiles(
 ): Promise<{ project: Project; warnings: string[] }> {
   let lastProject: Project | null = null;
   const warnings: string[] = [];
+
+  // Şəxsiyyət .docx faylları — brauzerdə şəkillərə böl (böyük fayl limiti üçün).
+  const expanded: File[] = [];
+  for (const f of files) {
+    if (kind === "identity" && f.name.toLowerCase().endsWith(".docx")) {
+      try {
+        const images = await splitDocxToImageFiles(f);
+        if (images.length > 0) {
+          expanded.push(...images);
+          continue;
+        }
+      } catch {
+        // bölünmədisə, orijinalı yüklə
+      }
+    }
+    expanded.push(f);
+  }
+  files = expanded;
 
   for (const f of files) {
     if (f.size > MAX_FILE_BYTES) {
