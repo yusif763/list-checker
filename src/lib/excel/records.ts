@@ -16,6 +16,34 @@ function cellToString(value: unknown): string {
   return String(value).trim();
 }
 
+// Başlıq/etiket sətirlərini tanımaq üçün dəqiq sözlər.
+const HEADER_WORDS = new Set([
+  "soyad", "soyadı", "ad", "adı", "ata", "atasının", "imza", "imzası", "fin",
+  "kod", "kodu", "cins", "cinsi", "doğum", "tarix", "tarixi", "telefon", "nömrə",
+  "nömrəsi", "vəzifə", "vəzifəsi", "fənn", "rayon", "şəhər", "email", "poçt", "s.a.a",
+  "name", "surname", "patronymic",
+]);
+
+function looksLikeHeaderText(text: string): boolean {
+  const words = text.toLocaleLowerCase("az").split(/[^\p{L}.]+/u).filter(Boolean);
+  const hits = words.filter((w) => HEADER_WORDS.has(w)).length;
+  return hits >= 2;
+}
+
+/** Sətrin real insan datası olub-olmadığını yoxlayır (başlıq/boş/footer deyil). */
+function isPersonRow(raw: Partial<Record<CanonicalField, string>>): boolean {
+  const nameText = (raw.fullName || [raw.lastName, raw.firstName].filter(Boolean).join(" ")).trim();
+  const fin = (raw.finCode ?? "").trim();
+
+  // Nə ad, nə FİN — şəxs deyil.
+  if (!nameText && !fin) return false;
+  // Ad başlıq/etiket mətnidirsə (məs. "Soyadı, Adı, Ata adı, imzası") — şəxs deyil.
+  if (nameText && looksLikeHeaderText(nameText)) return false;
+  // Adda heç bir hərf yoxdursa (yalnız rəqəm/işarə) və FİN də yoxdursa — şəxs deyil.
+  if (nameText && !/\p{L}/u.test(nameText) && !fin) return false;
+  return true;
+}
+
 /**
  * Təsdiqlənmiş uyğunlaşdırmalara əsasən vərəqdən PersonRecord-lar qurur.
  * Birləşmiş tam ad varsa və ayrı ad/soyad yoxdursa, onu hissələrə ayırır.
@@ -52,6 +80,9 @@ export function buildRecords(
 
     // Heç bir uyğunlaşdırılmış sütunda dəyər yoxdursa, sətri at (boş qeyd).
     if (Object.keys(raw).length === 0) continue;
+
+    // Yalnız real insan datası olan sətirlər — başlıq/etiket/boş sətirləri at.
+    if (!isPersonRow(raw)) continue;
 
     // Birləşmiş tam ad -> hissələr (ad/soyad ayrıca yoxdursa).
     if (raw.fullName && !raw.firstName && !raw.lastName) {
