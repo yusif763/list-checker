@@ -1,6 +1,7 @@
 import type { CorrectionsMap } from "@/lib/excel/export";
 import type { FileKind, Project, ProjectSummary } from "./types";
 import { splitDocxToImageFiles } from "@/lib/client/docx-split";
+import { compressImageFile } from "@/lib/client/image-compress";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -62,6 +63,19 @@ export async function uploadFiles(
       }
     }
     expanded.push(f);
+  }
+
+  // Böyük şəkilləri brauzerdə sıx (limitin altına düşsün).
+  if (kind === "identity") {
+    for (let i = 0; i < expanded.length; i++) {
+      if (expanded[i].type.startsWith("image/")) {
+        try {
+          expanded[i] = await compressImageFile(expanded[i]);
+        } catch {
+          /* sıxılmadısa orijinalı saxla */
+        }
+      }
+    }
   }
   files = expanded;
 
