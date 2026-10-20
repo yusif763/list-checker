@@ -7,8 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Download } from "lucide-react";
 import type { Project } from "@/lib/projects/types";
 import type { CanonicalField } from "@/lib/types";
-import { analyzeNext, getProject, processNext, saveCorrections, uploadFiles } from "@/lib/projects/client";
-import { aiStatus } from "@/lib/api";
+import { getProject, processNext, saveCorrections, uploadFiles } from "@/lib/projects/client";
 import { buildVerification } from "@/lib/verification";
 import { downloadReport } from "@/lib/download";
 import type { CorrectionsMap } from "@/lib/excel/export";
@@ -36,18 +35,6 @@ export default function ProjectWorkspace() {
     queryKey: ["project", id],
     queryFn: () => getProject(id),
   });
-  const { data: ai } = useQuery({ queryKey: ["ai-status"], queryFn: aiStatus });
-
-  const runAnalyze = async () => {
-    // Hissəli: remaining 0 olana qədər təhlil et, sonra layihəni yenilə.
-    let guard = 0;
-    while (guard < 1000) {
-      const r = await analyzeNext(id);
-      guard++;
-      if (r.remaining === 0) break;
-    }
-    setProject(await getProject(id));
-  };
 
   useEffect(() => {
     if (data) setProject(data);
@@ -177,10 +164,6 @@ export default function ProjectWorkspace() {
           corrections={corrections}
           onSetCorrection={setCorrection}
           onClearCorrection={clearCorrection}
-          aiComparisons={project.aiComparisons ?? {}}
-          onAnalyze={runAnalyze}
-          aiEnabled={ai?.enabled ?? false}
-          hasMainList={project.mainRecords.length > 0}
         />
       )}
 

@@ -3,23 +3,12 @@
 import { X, CheckCircle2, XCircle, MinusCircle, Check } from "lucide-react";
 import {
   CANONICAL_FIELD_LABELS,
-  MATCH_STATUS_LABELS,
+  type CanonicalField,
   type FieldComparison,
-  type MatchStatus,
   type VerificationRow,
 } from "@/lib/types";
 import { Badge, Button, Card } from "@/components/ui";
-import type { CanonicalField } from "@/lib/types";
 import type { CorrectionsMap } from "@/lib/excel/export";
-import type { AiCompareResult } from "@/lib/ai/compare";
-
-const MATCH_TONE: Record<MatchStatus, "green" | "red" | "amber" | "blue"> = {
-  found: "green",
-  found_mismatch: "amber",
-  possible: "amber",
-  not_found: "red",
-  multiple: "blue",
-};
 
 function CompIcon({ status }: { status: FieldComparison["status"] }) {
   if (status === "match") return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
@@ -76,14 +65,12 @@ export function PersonDetail({
   corrections: allCorrections,
   onSetCorrection,
   onClearCorrection,
-  aiComparison,
 }: {
   row: VerificationRow;
   onClose: () => void;
   corrections: CorrectionsMap;
   onSetCorrection: (recordId: string, field: CanonicalField, value: string) => void;
   onClearCorrection: (recordId: string, field: CanonicalField) => void;
-  aiComparison?: AiCompareResult[];
 }) {
   const corrections = allCorrections[row.record.id] ?? {};
 
@@ -111,28 +98,18 @@ export function PersonDetail({
         </div>
 
         <div className="space-y-5 p-6">
-          {/* Əsas Siyahı nəticəsi */}
+          {/* Əsas Siyahı — yalnız mövcudluq (var / yoxdur) */}
           <Card className="p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-700">Əsas Siyahı uyğunluğu</h3>
-              {row.mainListMatch ? (
-                <Badge tone={MATCH_TONE[row.mainListMatch.status]}>
-                  {MATCH_STATUS_LABELS[row.mainListMatch.status]}
-                </Badge>
-              ) : (
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-700">Əsas Siyahıda</h3>
+              {!row.mainListMatch ? (
                 <Badge tone="gray">Əsas Siyahı yüklənməyib</Badge>
+              ) : row.mainListMatch.matchedRecordId ? (
+                <Badge tone="green">Var</Badge>
+              ) : (
+                <Badge tone="red">Yoxdur</Badge>
               )}
             </div>
-            {row.mainListMatch && (
-              <>
-                <p className="mb-3 text-xs text-slate-500">{row.mainListMatch.explanation}</p>
-                <ComparisonTable
-                  title=""
-                  comparisons={row.mainListMatch.comparisons}
-                  rightLabel="Əsas Siyahı"
-                />
-              </>
-            )}
           </Card>
 
           {/* Şəxsiyyət vəsiqəsi */}
@@ -161,41 +138,6 @@ export function PersonDetail({
               </>
             )}
           </Card>
-
-          {/* AI uyğunsuzluq təhlili (Yekun ↔ Əsas, ağıllı) */}
-          {aiComparison && aiComparison.length > 0 && (
-            <Card className="p-4">
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">
-                AI uyğunsuzluq təhlili (Əsas siyahı ilə)
-              </h3>
-              <div className="space-y-2">
-                {aiComparison.map((c, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-lg border p-2 text-sm ${
-                      c.status === "mismatch"
-                        ? "border-red-200 bg-red-50"
-                        : c.status === "uncertain"
-                          ? "border-amber-200 bg-amber-50"
-                          : "border-slate-100 bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-700">
-                        {CANONICAL_FIELD_LABELS[c.field as CanonicalField] ?? c.field}
-                      </span>
-                      <Badge
-                        tone={c.status === "mismatch" ? "red" : c.status === "uncertain" ? "amber" : "green"}
-                      >
-                        {c.status === "mismatch" ? "Fərqli" : c.status === "uncertain" ? "Qeyri-müəyyən" : "Uyğun"}
-                      </Badge>
-                    </div>
-                    {c.note && <div className="mt-1 text-xs text-slate-500">{c.note}</div>}
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
 
           {/* Yoxlama problemləri + düzəlişlər */}
           <Card className="p-4">

@@ -1,6 +1,5 @@
 import type { ExtractedIdentity, PersonRecord } from "@/lib/types";
 import type { CorrectionsMap } from "@/lib/excel/export";
-import type { AiCompareResult } from "@/lib/ai/compare";
 
 export type FileKind = "final" | "main" | "identity";
 export type ProcessStatus = "pending" | "processing" | "done" | "failed";
@@ -34,8 +33,6 @@ export interface Project {
   mainRecords: PersonRecord[];
   identities: ExtractedIdentity[];
   corrections: CorrectionsMap;
-  /** AI uyğunsuzluq təhlili: Yekun qeyd id -> sahə-sahə AI verdikti. */
-  aiComparisons?: Record<string, AiCompareResult[]>;
 }
 
 export interface ProjectSummary {
