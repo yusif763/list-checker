@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Download } from "lucide-react";
 import type { Project } from "@/lib/projects/types";
 import type { CanonicalField } from "@/lib/types";
-import { getProject, processNext, saveCorrections, uploadFiles } from "@/lib/projects/client";
+import { deleteFile, getProject, processNext, saveCorrections, uploadFiles } from "@/lib/projects/client";
 import { buildVerification } from "@/lib/verification";
 import { downloadReport } from "@/lib/download";
 import type { CorrectionsMap } from "@/lib/excel/export";
@@ -30,11 +30,43 @@ export default function ProjectWorkspace() {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [tab, setTab] = useState<Tab>("yukle");
+  const [autoProcessing, setAutoProcessing] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["project", id],
     queryFn: () => getProject(id),
   });
+
+  // Vəsiqələri avtomatik, hissə-hissə emal et (remaining 0 olana qədər).
+  const runProcessLoop = async () => {
+    setAutoProcessing(true);
+    try {
+      let guard = 0;
+      while (guard < 2000) {
+        const r = await processNext(id);
+        setProject(r.project);
+        guard++;
+        if (r.remaining === 0) break;
+      }
+    } finally {
+      setAutoProcessing(false);
+    }
+  };
+
+  const handleUpload = async (kind: "final" | "main" | "identity", files: File[]) => {
+    const res = await uploadFiles(id, kind, files);
+    setProject(res.project);
+    // Yeni vəsiqə faylları yüklənəndə emalı avtomatik başlat.
+    if (kind === "identity") {
+      setTab("emal");
+      void runProcessLoop();
+    }
+    return res.warnings;
+  };
+
+  const handleDelete = async (fileId: string) => {
+    setProject(await deleteFile(id, fileId));
+  };
 
   useEffect(() => {
     if (data) setProject(data);
@@ -137,19 +169,13 @@ export default function ProjectWorkspace() {
       </div>
 
       {tab === "yukle" && (
-        <UploadPanel
-          project={project}
-          onUpload={async (kind, files) => {
-            const res = await uploadFiles(id, kind, files);
-            setProject(res.project);
-            return res.warnings;
-          }}
-        />
+        <UploadPanel project={project} onUpload={handleUpload} onDelete={handleDelete} />
       )}
 
       {tab === "emal" && (
         <ProcessPanel
           project={project}
+          busy={autoProcessing}
           onProcessStep={async (fileId) => {
             const res = await processNext(id, fileId);
             setProject(res.project);

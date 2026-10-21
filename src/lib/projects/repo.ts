@@ -85,3 +85,7 @@ export async function readOriginalFile(
 ): Promise<{ data: Buffer; meta: StoredFileMeta } | null> {
   return getStorage().getFile(fileKey(projectId, fileId));
 }
+
+export async function deleteOriginalFile(projectId: string, fileId: string): Promise<void> {
+  await getStorage().delete(fileKey(projectId, fileId));
+}

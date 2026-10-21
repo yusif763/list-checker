@@ -121,6 +121,13 @@ export async function processNext(
   );
 }
 
+export async function deleteFile(projectId: string, fileId: string): Promise<Project> {
+  const d = await handle<{ project: Project }>(
+    await fetch(`/api/projects/${projectId}/files/${fileId}`, { method: "DELETE" }),
+  );
+  return d.project;
+}
+
 export async function saveCorrections(id: string, corrections: CorrectionsMap): Promise<void> {
   await handle(
     await fetch(`/api/projects/${id}/corrections`, {

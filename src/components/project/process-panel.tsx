@@ -8,12 +8,15 @@ import { Badge, Button, Card, Spinner } from "@/components/ui";
 export function ProcessPanel({
   project,
   onProcessStep,
+  busy = false,
 }: {
   project: Project;
   onProcessStep: (fileId?: string) => Promise<number>;
+  busy?: boolean;
 }) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isRunning = running || busy;
 
   const identityFiles = project.files.filter((f) => f.kind === "identity");
   const done = identityFiles.filter((f) => f.status === "done").length;
@@ -63,10 +66,10 @@ export function ProcessPanel({
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="text-sm text-slate-600">
           {identityFiles.length} fayl • {done} hazır • {notDone} qalıb
-          {running && <span className="ml-2 text-brand-600">emal olunur...</span>}
+          {isRunning && <span className="ml-2 text-brand-600">emal olunur...</span>}
         </div>
-        <Button onClick={processAll} disabled={running || notDone === 0}>
-          {running ? <Spinner /> : <Play className="h-4 w-4" />}
+        <Button onClick={processAll} disabled={isRunning || notDone === 0}>
+          {isRunning ? <Spinner /> : <Play className="h-4 w-4" />}
           {notDone === 0 ? "Hamısı emal olunub" : "Emalı başlat"}
         </Button>
       </Card>
@@ -116,7 +119,7 @@ export function ProcessPanel({
                   </Badge>
                 )}
                 {(f.status === "done" || f.status === "failed") && (
-                  <Button variant="ghost" size="sm" disabled={running} onClick={() => reprocess(f.id)}>
+                  <Button variant="ghost" size="sm" disabled={isRunning} onClick={() => reprocess(f.id)}>
                     <RefreshCw className="h-3 w-3" /> Təkrar
                   </Button>
                 )}

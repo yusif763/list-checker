@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { FileSpreadsheet, Database, IdCard, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
+import { FileSpreadsheet, Database, IdCard, CheckCircle2, XCircle, Clock, AlertTriangle, Trash2 } from "lucide-react";
 import type { FileKind, Project } from "@/lib/projects/types";
-import { Badge, Card, Spinner } from "@/components/ui";
+import { Badge, Button, Card, Spinner } from "@/components/ui";
 import { Dropzone } from "@/components/dropzone";
 
 const SECTIONS: { kind: FileKind; title: string; desc: string; accept: string; multiple: boolean; icon: typeof FileSpreadsheet }[] = [
@@ -43,12 +43,24 @@ const STATUS_BADGE: Record<string, { tone: "green" | "red" | "amber" | "gray" | 
 export function UploadPanel({
   project,
   onUpload,
+  onDelete,
 }: {
   project: Project;
   onUpload: (kind: FileKind, files: File[]) => Promise<string[]>;
+  onDelete: (fileId: string) => Promise<void>;
 }) {
   const [busy, setBusy] = useState<FileKind | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (fileId: string) => {
+    setDeleting(fileId);
+    try {
+      await onDelete(fileId);
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const handle = async (kind: FileKind, files: File[]) => {
     setBusy(kind);
@@ -114,6 +126,15 @@ export function UploadPanel({
                           <span className="text-xs text-slate-500">{f.extractedCount} vəsiqə</span>
                         )}
                         <Badge tone={badge.tone}>{badge.label}</Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={deleting === f.id}
+                          onClick={() => handleDelete(f.id)}
+                          title="Sil"
+                        >
+                          {deleting === f.id ? <Spinner className="h-3 w-3" /> : <Trash2 className="h-3.5 w-3.5 text-red-500" />}
+                        </Button>
                       </div>
                     </div>
                   );
